@@ -65,7 +65,8 @@ const EventDetails = () => {
       toast.success(`${files.length} photos uploaded successfully!`);
       setTimeout(loadEventDetails, 1000);
     } catch (error) {
-      toast.error('Upload failed');
+      console.error('Upload error:', error);
+      toast.error(error.response?.data?.detail || error.message || 'Upload failed');
     } finally {
       setUploading(false);
       setUploadProgress(0);
