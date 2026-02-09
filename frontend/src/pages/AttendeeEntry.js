@@ -20,9 +20,20 @@ const AttendeeEntry = () => {
       const response = await api.get(`/events/code/${eventCode.toUpperCase()}`);
       const event = response.data;
       
-      if (event.status !== 'completed') {
+      if (event.status === 'processing') {
         toast.error('Event is still processing photos. Please try again later.');
+        setLoading(false);
         return;
+      }
+      
+      if (event.status === 'active' && event.total_photos === 0) {
+        toast.error('This event has no photos yet. Please contact the organizer.');
+        setLoading(false);
+        return;
+      }
+      
+      if (event.faces_detected === 0) {
+        toast.warning('Note: No faces detected in photos yet. You can still try searching.');
       }
       
       toast.success(`Found event: ${event.title}`);
