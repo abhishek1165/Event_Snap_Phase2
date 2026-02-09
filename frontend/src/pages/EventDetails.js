@@ -21,6 +21,7 @@ const EventDetails = () => {
 
   useEffect(() => {
     loadEventDetails();
+    loadPhotos();
     const interval = setInterval(loadStatus, 3000);
     return () => clearInterval(interval);
   }, [eventId]);
@@ -34,6 +35,15 @@ const EventDetails = () => {
       toast.error('Failed to load event');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPhotos = async () => {
+    try {
+      const response = await api.get(`/events/${eventId}/photos`);
+      setPhotos(response.data);
+    } catch (error) {
+      console.error('Failed to load photos');
     }
   };
 
