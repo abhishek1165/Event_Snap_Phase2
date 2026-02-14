@@ -46,6 +46,10 @@ for directory in [PHOTOS_DIR, THUMBNAILS_DIR, FAISS_DIR]:
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
 JWT_ALGORITHM = 'HS256'
 
+# Face matching thresholds
+MINIMUM_MATCH_THRESHOLD = float(os.environ.get('MINIMUM_MATCH_THRESHOLD', '0.5'))  # 50% minimum similarity
+HIGH_CONFIDENCE_THRESHOLD = float(os.environ.get('HIGH_CONFIDENCE_THRESHOLD', '0.7'))  # 70% high confidence similarity
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -280,7 +284,7 @@ async def build_faiss_index(event_id: str):
         logging.error(f"Error building FAISS index: {e}")
 
 async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) -> List[SearchResult]:
-    """Search for similar faces in an event"""
+    """Search for similar faces in an event with threshold filtering"""
     try:
         # Load index if not in memory
         if event_id not in faiss_indices:
@@ -301,7 +305,7 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) 
         query_array = query_embedding.reshape(1, -1).astype('float32')
         distances, indices = index.search(query_array, k)
         
-        # Get unique photos
+        # Get unique photos with proper similarity calculation
         seen_photos = set()
         results = []
         
@@ -320,14 +324,22 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) 
             # Get photo details
             photo = await db.photos.find_one({"id": photo_id}, {"_id": 0})
             if photo:
-                similarity_score = float(1.0 / (1.0 + distance))  # Convert distance to similarity
-                results.append(SearchResult(
-                    photo_id=photo_id,
-                    event_id=event_id,
-                    similarity_score=similarity_score,
-                    thumbnail_url=f"/api/photos/{photo_id}/thumbnail",
-                    photo_url=f"/api/photos/{photo_id}"
-                ))
+                # Convert FAISS L2 distance to cosine similarity (more accurate)
+                # For normalized vectors: cosine_similarity = 1 - (distance² / 2)
+                similarity_score = float(1.0 - (distance * distance / 2.0))
+                
+                # Only include results that meet minimum threshold
+                if similarity_score >= MINIMUM_MATCH_THRESHOLD:
+                    results.append(SearchResult(
+                        photo_id=photo_id,
+                        event_id=event_id,
+                        similarity_score=similarity_score,
+                        thumbnail_url=f"/api/photos/{photo_id}/thumbnail",
+                        photo_url=f"/api/photos/{photo_id}"
+                    ))
+        
+        # Sort by similarity score (descending - best matches first)
+        results.sort(key=lambda x: x.similarity_score, reverse=True)
         
         return results
         
@@ -647,8 +659,18 @@ async def search_by_selfie(
         # Clean up
         selfie_path.unlink()
         
+        # If no photos meet the minimum threshold, return appropriate message
+        if not results:
+            raise HTTPException(
+                status_code=404, 
+                detail="No matching photos found. You are not present in this event."
+            )
+        
         return results
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (including our custom 404)
+        raise
     except Exception as e:
         logging.error(f"Error searching by selfie: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -668,6 +690,96 @@ async def get_photo_thumbnail(photo_id: str):
         raise HTTPException(status_code=404, detail="Photo not found")
     
     return FileResponse(photo['thumbnail_path'])
+
+@api_router.delete("/events/{event_id}/photos/{photo_id}")
+async def delete_photo(
+    event_id: str, 
+    photo_id: str, 
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a photo completely from all storage systems"""
+    # Verify event exists and user has permission
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if event['organizer_id'] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete photos from this event")
+    
+    # Verify photo exists
+    photo = await db.photos.find_one({"id": photo_id, "event_id": event_id})
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    
+    try:
+        # 1. Remove from file system
+        photo_path = Path(photo['file_path'])
+        thumbnail_path = Path(photo['thumbnail_path'])
+        
+        if photo_path.exists():
+            photo_path.unlink()
+        if thumbnail_path.exists():
+            thumbnail_path.unlink()
+        
+        # 2. Remove from database
+        await db.photos.delete_one({"id": photo_id})
+        
+        # 3. Remove face embeddings from database
+        await db.face_embeddings.delete_many({"photo_id": photo_id})
+        
+        # 4. Update event statistics
+        await db.events.update_one(
+            {"id": event_id},
+            {
+                "$inc": {
+                    "total_photos": -1,
+                    "processed_photos": -1 if photo['processed'] else 0,
+                    "faces_detected": -photo['faces_detected']
+                }
+            }
+        )
+        
+        # 5. Rebuild FAISS index for the event (if index exists)
+        try:
+            await rebuild_faiss_index(event_id)
+        except Exception as e:
+            logging.warning(f"Failed to rebuild FAISS index after deletion: {e}")
+            # Don't fail the deletion if index rebuild fails
+        
+        return {
+            "message": "Photo deleted successfully",
+            "photo_id": photo_id,
+            "event_id": event_id
+        }
+        
+    except Exception as e:
+        logging.error(f"Error deleting photo {photo_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete photo")
+
+async def rebuild_faiss_index(event_id: str):
+    """Rebuild FAISS index after photo deletion"""
+    try:
+        # Remove existing index files
+        index_path = FAISS_DIR / f"{event_id}.index"
+        mapping_path = FAISS_DIR / f"{event_id}.pkl"
+        
+        if index_path.exists():
+            index_path.unlink()
+        if mapping_path.exists():
+            mapping_path.unlink()
+        
+        # Remove from memory
+        if event_id in faiss_indices:
+            del faiss_indices[event_id]
+        if event_id in face_mappings:
+            del face_mappings[event_id]
+        
+        # Rebuild index with remaining embeddings
+        await build_faiss_index(event_id)
+        
+    except Exception as e:
+        logging.error(f"Error rebuilding FAISS index for event {event_id}: {e}")
+        raise
 
 @api_router.get("/")
 async def root():

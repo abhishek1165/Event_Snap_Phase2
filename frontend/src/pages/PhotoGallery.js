@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Download, ArrowLeft, ExternalLink, Star, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -11,8 +11,45 @@ const PhotoGallery = () => {
   const navigate = useNavigate();
   const results = location.state?.results || [];
   const event = location.state?.event;
+  const [selectedPhotos, setSelectedPhotos] = useState(new Set());
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
+  // Thresholds (should match backend environment variables)
+  const MINIMUM_MATCH_THRESHOLD = parseFloat(process.env.REACT_APP_MINIMUM_MATCH_THRESHOLD || '0.5');
+  const HIGH_CONFIDENCE_THRESHOLD = parseFloat(process.env.REACT_APP_HIGH_CONFIDENCE_THRESHOLD || '0.7');
+
+  const getConfidenceLabel = (similarity) => {
+    if (similarity >= HIGH_CONFIDENCE_THRESHOLD) {
+      return { label: 'High Confidence', class: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' };
+    } else {
+      return { label: 'Possible Match', class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' };
+    }
+  };
+
+  const togglePhotoSelection = (photoId) => {
+    const newSelected = new Set(selectedPhotos);
+    if (newSelected.has(photoId)) {
+      newSelected.delete(photoId);
+    } else {
+      newSelected.add(photoId);
+    }
+    setSelectedPhotos(newSelected);
+  };
+
+  const handleBulkDownload = () => {
+    if (selectedPhotos.size === 0) {
+      toast.error('Please select at least one photo to download');
+      return;
+    }
+    
+    selectedPhotos.forEach(photoId => {
+      const url = `${BACKEND_URL}${results.find(r => r.photo_id === photoId)?.photo_url}`;
+      window.open(url, '_blank');
+    });
+    
+    toast.success(`Downloading ${selectedPhotos.size} photo(s)...`);
+  };
 
   const handleDownload = async (photoId) => {
     try {
@@ -63,44 +100,121 @@ const PhotoGallery = () => {
           </div>
         </motion.div>
 
+        {/* Selection Controls */}
+        {results.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-3 items-center">
+            <Button
+              onClick={handleBulkDownload}
+              disabled={selectedPhotos.size === 0}
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Download className="w-4 h-4" />
+              Download Selected ({selectedPhotos.size})
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedPhotos(new Set(results.map(r => r.photo_id)))}
+              className="gap-2"
+            >
+              <Check className="w-4 h-4" />
+              Select All
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedPhotos(new Set())}
+              disabled={selectedPhotos.size === 0}
+              className="gap-2"
+            >
+              Clear Selection
+            </Button>
+          </div>
+        )}
+
         {/* Masonry Gallery */}
         <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
-          {results.map((result, index) => (
-            <motion.div
-              key={result.photo_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="break-inside-avoid mb-4 group"
-              data-testid={`photo-card-${result.photo_id}`}
-            >
-              <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-xl transition-all duration-300">
-                <img
-                  src={`${BACKEND_URL}${result.thumbnail_url}`}
-                  alt={`Photo ${index + 1}`}
-                  className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
-                    <div className="text-white">
-                      <div className="text-sm font-medium">Similarity</div>
-                      <div className="text-xs">{(result.similarity_score * 100).toFixed(0)}%</div>
+          {results.map((result, index) => {
+            const isSelected = selectedPhotos.has(result.photo_id);
+            const confidence = getConfidenceLabel(result.similarity_score);
+            return (
+              <motion.div
+                key={result.photo_id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="break-inside-avoid mb-4 group"
+                data-testid={`photo-card-${result.photo_id}`}
+              >
+                <div 
+                  className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                    isSelected 
+                      ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' 
+                      : 'border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl hover:border-indigo-300'
+                  }`}
+                  onClick={() => togglePhotoSelection(result.photo_id)}
+                >
+                  <img
+                    src={`${BACKEND_URL}${result.thumbnail_url}`}
+                    alt={`Photo ${index + 1}`}
+                    className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  
+                  {/* Selection indicator */}
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
                     </div>
-                    <Button
-                      data-testid={`download-button-${result.photo_id}`}
-                      size="sm"
-                      onClick={() => handleDownload(result.photo_id)}
-                      className="gap-2 bg-white text-slate-900 hover:bg-slate-100"
-                    >
-                      <Download className="w-3 h-3" />
-                      View
-                    </Button>
+                  )}
+                  
+                  {/* Confidence badge */}
+                  <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium ${confidence.class}`}>
+                    {confidence.label}
+                  </div>
+                  
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <div className="text-white mb-3">
+                        <div className="text-sm font-medium">Match Confidence</div>
+                        <div className="text-lg font-bold">{(result.similarity_score * 100).toFixed(0)}%</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          data-testid={`download-button-${result.photo_id}`}
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(result.photo_id);
+                          }}
+                          className="flex-1 gap-2 bg-white text-slate-900 hover:bg-slate-100"
+                        >
+                          <Download className="w-3 h-3" />
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={isSelected ? "default" : "secondary"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePhotoSelection(result.photo_id);
+                          }}
+                          className="gap-2"
+                        >
+                          {isSelected ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              Selected
+                            </>
+                          ) : (
+                            'Select'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Footer CTA */}

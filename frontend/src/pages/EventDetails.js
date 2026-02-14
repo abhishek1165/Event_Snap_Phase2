@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import api from '@/utils/api';
 
@@ -16,6 +17,9 @@ const EventDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -53,6 +57,24 @@ const EventDetails = () => {
       setStatus(response.data);
     } catch (error) {
       console.error('Failed to load status');
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!photoToDelete) return;
+    
+    setDeleting(true);
+    try {
+      await api.delete(`/events/${eventId}/photos/${photoToDelete.id}`);
+      toast.success('Photo deleted successfully');
+      setDeleteDialogOpen(false);
+      setPhotoToDelete(null);
+      await loadPhotos();
+      await loadEventDetails();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete photo');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -262,11 +284,78 @@ const EventDetails = () => {
                       {photo.faces_detected} face{photo.faces_detected !== 1 ? 's' : ''}
                     </span>
                   </div>
+                  {/* Delete button overlay */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-8 h-8 p-0 rounded-full shadow-lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPhotoToDelete(photo);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </motion.div>
               ))}
             </div>
           </motion.div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="w-5 h-5" />
+                Delete Photo
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this photo? This action cannot be undone and the photo will be permanently removed from:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Storage system</li>
+                  <li>Database records</li>
+                  <li>Face recognition index</li>
+                  <li>All search results</li>
+                </ul>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setPhotoToDelete(null);
+                }}
+                className="flex-1"
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeletePhoto}
+                className="flex-1 gap-2"
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Photo
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
