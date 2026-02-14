@@ -33,8 +33,8 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Storage setup
-STORAGE_DIR = Path("/app/storage")
+# Storage setup (use STORAGE_DIR env for local dev so FAISS index path matches)
+STORAGE_DIR = Path(os.environ.get("STORAGE_DIR", "/app/storage"))
 PHOTOS_DIR = STORAGE_DIR / "photos"
 THUMBNAILS_DIR = STORAGE_DIR / "thumbnails"
 FAISS_DIR = STORAGE_DIR / "faiss_indices"
@@ -181,7 +181,7 @@ def generate_thumbnail(image_path: str, thumbnail_path: str, size=(300, 300)):
         return False
 
 async def process_photo_faces(photo_id: str, event_id: str, image_path: str):
-    """Detect faces and generate embeddings for a photo"""
+    """Detect faces and generate embeddings for a photo. One embedding per face crop."""
     try:
         # Detect faces using DeepFace
         faces = DeepFace.extract_faces(
@@ -199,20 +199,44 @@ async def process_photo_faces(photo_id: str, event_id: str, image_path: str):
         for idx, face_data in enumerate(faces):
             if face_data.get('confidence', 0) < 0.5:
                 continue
-                
-            # Generate embedding
+            
             face_region = face_data['facial_area']
-            embedding_result = DeepFace.represent(
-                img_path=image_path,
-                model_name='Facenet',
-                detector_backend='skip',
-                enforce_detection=False
-            )
+            # Use the cropped face image so we get one embedding per face (not the full image)
+            face_crop = face_data.get('face')
+            if face_crop is None:
+                # Fallback: crop using facial_area and re-read (BGR 0-255 from cv2)
+                img = cv2.imread(image_path)
+                if img is None:
+                    continue
+                x, y, w, h = face_region['x'], face_region['y'], face_region['w'], face_region['h']
+                face_crop = img[max(0, y):y + h, max(0, x):x + w]
+                face_to_save = face_crop
+            else:
+                # DeepFace extract_faces returns RGB, 0-1 float; cv2.imwrite expects BGR 0-255
+                if face_crop.max() <= 1.0:
+                    face_crop = (np.clip(face_crop, 0, 1) * 255).astype(np.uint8)
+                if len(face_crop.shape) == 3 and face_crop.shape[2] == 3:
+                    face_to_save = cv2.cvtColor(face_crop, cv2.COLOR_RGB2BGR)
+                else:
+                    face_to_save = face_crop
+            
+            # DeepFace.represent expects a file path; write crop to temp file
+            crop_path = STORAGE_DIR / f"face_crop_{uuid.uuid4()}.jpg"
+            try:
+                cv2.imwrite(str(crop_path), face_to_save)
+                embedding_result = DeepFace.represent(
+                    img_path=str(crop_path),
+                    model_name='Facenet',
+                    detector_backend='skip',
+                    enforce_detection=False
+                )
+            finally:
+                if crop_path.exists():
+                    crop_path.unlink()
             
             if embedding_result:
                 embedding = np.array(embedding_result[0]['embedding'])
                 
-                # Create face embedding document
                 face_id = str(uuid.uuid4())
                 bbox = [face_region['x'], face_region['y'], face_region['w'], face_region['h']]
                 
@@ -292,6 +316,7 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) 
             mapping_path = FAISS_DIR / f"{event_id}.pkl"
             
             if not index_path.exists():
+                logging.warning(f"FAISS index not found for event {event_id} at {index_path}. Rebuild index by re-uploading photos or running event processing.")
                 return []
             
             faiss_indices[event_id] = faiss.read_index(str(index_path))
@@ -300,10 +325,20 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) 
         
         index = faiss_indices[event_id]
         mapping = face_mappings[event_id]
+        n_vectors = index.ntotal
+        if n_vectors == 0:
+            logging.warning(f"FAISS index for event {event_id} is empty.")
+            return []
         
-        # Search
+        # Search (k must not exceed number of vectors)
+        k = min(k, n_vectors)
         query_array = query_embedding.reshape(1, -1).astype('float32')
         distances, indices = index.search(query_array, k)
+        
+        # Log top distances for debugging (helps when "no match" but user expects match)
+        top_d = distances[0][: min(5, len(distances[0]))]
+        top_similarities = [float(1.0 - (d * d / 2.0)) for d in top_d]
+        logging.info(f"Event {event_id} selfie search: top {len(top_d)} L2 distances={top_d.tolist()}, similarities={[round(s, 3) for s in top_similarities]}, threshold={MINIMUM_MATCH_THRESHOLD}")
         
         # Get unique photos with proper similarity calculation
         seen_photos = set()
@@ -324,8 +359,8 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) 
             # Get photo details
             photo = await db.photos.find_one({"id": photo_id}, {"_id": 0})
             if photo:
-                # Convert FAISS L2 distance to cosine similarity (more accurate)
-                # For normalized vectors: cosine_similarity = 1 - (distance² / 2)
+                # Convert FAISS L2 distance to cosine similarity
+                # For L2-normalized vectors: cosine_similarity = 1 - (distance² / 2)
                 similarity_score = float(1.0 - (distance * distance / 2.0))
                 
                 # Only include results that meet minimum threshold
@@ -525,6 +560,40 @@ async def upload_photos(
         'message': f'{len(files)} photos uploaded successfully',
         'photo_ids': uploaded_photos
     }
+
+@api_router.post("/events/{event_id}/reprocess")
+async def reprocess_event(event_id: str, current_user: User = Depends(get_current_user)):
+    """Re-extract faces from all photos and rebuild FAISS index (fixes matching without re-uploading)."""
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event['organizer_id'] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to reprocess this event")
+    
+    # Remove old face embeddings and FAISS index so we rebuild from scratch
+    await db.face_embeddings.delete_many({"event_id": event_id})
+    index_path = FAISS_DIR / f"{event_id}.index"
+    mapping_path = FAISS_DIR / f"{event_id}.pkl"
+    for p in (index_path, mapping_path):
+        if p.exists():
+            p.unlink()
+    if event_id in faiss_indices:
+        del faiss_indices[event_id]
+    if event_id in face_mappings:
+        del face_mappings[event_id]
+    
+    # Mark all photos as unprocessed
+    await db.photos.update_many(
+        {"event_id": event_id},
+        {"$set": {"processed": False, "upload_status": "uploaded", "faces_detected": 0}}
+    )
+    await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"status": "processing", "processed_photos": 0, "faces_detected": 0}}
+    )
+    
+    asyncio.create_task(process_event_photos(event_id))
+    return {"message": "Reprocessing started. Face index will rebuild; try selfie search again when status is completed.", "event_id": event_id}
 
 async def process_event_photos(event_id: str):
     """Background task to process all photos in an event"""

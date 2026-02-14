@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -20,6 +20,7 @@ const EventDetails = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -106,6 +107,20 @@ const EventDetails = () => {
     } finally {
       setUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleReprocess = async () => {
+    setReprocessing(true);
+    try {
+      await api.post(`/events/${eventId}/reprocess`);
+      toast.success('Rebuilding face index… Try selfie search again when processing finishes.');
+      await loadStatus();
+      await loadEventDetails();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Reprocess failed');
+    } finally {
+      setReprocessing(false);
     }
   };
 
@@ -203,12 +218,31 @@ const EventDetails = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-6 mb-8"
           >
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="font-semibold text-green-800 dark:text-green-300">
-                All photos processed! Event is ready for attendees.
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <span className="font-semibold text-green-800 dark:text-green-300">
+                  All photos processed! Event is ready for attendees.
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReprocess}
+                disabled={reprocessing || !photos.length}
+                className="gap-2 border-green-300 text-green-800 dark:text-green-300 dark:border-green-700"
+              >
+                {reprocessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Rebuild face index
+              </Button>
             </div>
+            <p className="text-sm text-green-700 dark:text-green-400 mt-2">
+              If selfie search does not find you, click “Rebuild face index” to re-detect faces and rebuild the index (no need to re-upload).
+            </p>
           </motion.div>
         )}
 
