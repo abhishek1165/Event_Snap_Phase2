@@ -46,9 +46,15 @@ for directory in [PHOTOS_DIR, THUMBNAILS_DIR, FAISS_DIR]:
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
 JWT_ALGORITHM = 'HS256'
 
-# Face matching thresholds
-MINIMUM_MATCH_THRESHOLD = float(os.environ.get('MINIMUM_MATCH_THRESHOLD', '0.5'))  # 50% minimum similarity
-HIGH_CONFIDENCE_THRESHOLD = float(os.environ.get('HIGH_CONFIDENCE_THRESHOLD', '0.7'))  # 70% high confidence similarity
+# Face model: same for Organizer (photo indexing) and Attendee (selfie search).
+FACE_MODEL = os.environ.get('FACE_MODEL', 'Facenet')
+
+# Detector for group photos: retinaface finds all faces; opencv often finds only 1
+FACE_DETECTOR = os.environ.get('FACE_DETECTOR', 'retinaface')  # retinaface, mtcnn, opencv
+
+# Face matching thresholds (lower = more photos returned for same person in different shots)
+MINIMUM_MATCH_THRESHOLD = float(os.environ.get('MINIMUM_MATCH_THRESHOLD', '0.35'))
+HIGH_CONFIDENCE_THRESHOLD = float(os.environ.get('HIGH_CONFIDENCE_THRESHOLD', '0.7'))
 
 # Create the main app
 app = FastAPI()
@@ -183,10 +189,10 @@ def generate_thumbnail(image_path: str, thumbnail_path: str, size=(300, 300)):
 async def process_photo_faces(photo_id: str, event_id: str, image_path: str):
     """Detect faces and generate embeddings for a photo. One embedding per face crop."""
     try:
-        # Detect faces using DeepFace
+        # RetinaFace finds ALL faces in group photos; opencv often finds only the most prominent
         faces = DeepFace.extract_faces(
             img_path=image_path,
-            detector_backend='opencv',
+            detector_backend=FACE_DETECTOR,
             enforce_detection=False
         )
         
@@ -194,10 +200,11 @@ async def process_photo_faces(photo_id: str, event_id: str, image_path: str):
             logging.info(f"No faces detected in photo {photo_id}")
             return []
         
+        logging.info(f"Photo {photo_id}: detected {len(faces)} face(s)")
         face_embeddings = []
         
         for idx, face_data in enumerate(faces):
-            if face_data.get('confidence', 0) < 0.5:
+            if face_data.get('confidence', 0) < 0.4:
                 continue
             
             face_region = face_data['facial_area']
@@ -226,7 +233,7 @@ async def process_photo_faces(photo_id: str, event_id: str, image_path: str):
                 cv2.imwrite(str(crop_path), face_to_save)
                 embedding_result = DeepFace.represent(
                     img_path=str(crop_path),
-                    model_name='Facenet',
+                    model_name=FACE_MODEL,
                     detector_backend='skip',
                     enforce_detection=False
                 )
@@ -235,7 +242,11 @@ async def process_photo_faces(photo_id: str, event_id: str, image_path: str):
                     crop_path.unlink()
             
             if embedding_result:
-                embedding = np.array(embedding_result[0]['embedding'])
+                embedding = np.array(embedding_result[0]['embedding']).astype('float32')
+                # L2-normalize so similarity = 1 - d²/2 works (Facenet/Face models may not normalize)
+                norm = np.linalg.norm(embedding)
+                if norm > 0:
+                    embedding = embedding / norm
                 
                 face_id = str(uuid.uuid4())
                 bbox = [face_region['x'], face_region['y'], face_region['w'], face_region['h']]
@@ -277,7 +288,11 @@ async def build_faiss_index(event_id: str):
         
         for emb_doc in embeddings_list:
             face_ids.append(emb_doc['face_id'])
-            embeddings.append(emb_doc['embedding'])
+            emb = np.array(emb_doc['embedding']).astype('float32')
+            norm = np.linalg.norm(emb)
+            if norm > 0:
+                emb = emb / norm
+            embeddings.append(emb)
             photo_map[emb_doc['face_id']] = emb_doc['photo_id']
         
         embeddings_array = np.array(embeddings).astype('float32')
@@ -307,8 +322,8 @@ async def build_faiss_index(event_id: str):
     except Exception as e:
         logging.error(f"Error building FAISS index: {e}")
 
-async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) -> List[SearchResult]:
-    """Search for similar faces in an event with threshold filtering"""
+async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = None) -> List[SearchResult]:
+    """Search for similar faces in an event with threshold filtering. Returns all unique photos where the face appears (group + individual)."""
     try:
         # Load index if not in memory
         if event_id not in faiss_indices:
@@ -330,52 +345,45 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = 50) 
             logging.warning(f"FAISS index for event {event_id} is empty.")
             return []
         
-        # Search (k must not exceed number of vectors)
-        k = min(k, n_vectors)
+        # Search the ENTIRE index so we never miss same person in other photos (group/individual)
+        k = n_vectors if (k is None or k > n_vectors) else k
         query_array = query_embedding.reshape(1, -1).astype('float32')
         distances, indices = index.search(query_array, k)
         
-        # Log top distances for debugging (helps when "no match" but user expects match)
+        # Log for debugging
         top_d = distances[0][: min(5, len(distances[0]))]
         top_similarities = [float(1.0 - (d * d / 2.0)) for d in top_d]
-        logging.info(f"Event {event_id} selfie search: top {len(top_d)} L2 distances={top_d.tolist()}, similarities={[round(s, 3) for s in top_similarities]}, threshold={MINIMUM_MATCH_THRESHOLD}")
+        logging.info(f"Event {event_id} selfie search: index has {n_vectors} faces, top5 similarities={[round(s, 3) for s in top_similarities]}, threshold={MINIMUM_MATCH_THRESHOLD}")
         
-        # Get unique photos with proper similarity calculation
-        seen_photos = set()
-        results = []
+        # Per-photo BEST similarity: a photo is included if ANY face in it meets threshold (use best score for that photo)
+        photo_best_similarity = {}  # photo_id -> best similarity seen for that photo
         
         for idx, distance in zip(indices[0], distances[0]):
             if idx == -1:
                 continue
-            
             face_id = mapping['face_ids'][idx]
             photo_id = mapping['photo_map'][face_id]
-            
-            if photo_id in seen_photos:
+            similarity_score = float(1.0 - (distance * distance / 2.0))
+            if photo_id not in photo_best_similarity or similarity_score > photo_best_similarity[photo_id]:
+                photo_best_similarity[photo_id] = similarity_score
+        
+        # Include every photo whose best-matching face is above threshold
+        results = []
+        for photo_id, best_sim in photo_best_similarity.items():
+            if best_sim < MINIMUM_MATCH_THRESHOLD:
                 continue
-            
-            seen_photos.add(photo_id)
-            
-            # Get photo details
             photo = await db.photos.find_one({"id": photo_id}, {"_id": 0})
             if photo:
-                # Convert FAISS L2 distance to cosine similarity
-                # For L2-normalized vectors: cosine_similarity = 1 - (distance² / 2)
-                similarity_score = float(1.0 - (distance * distance / 2.0))
-                
-                # Only include results that meet minimum threshold
-                if similarity_score >= MINIMUM_MATCH_THRESHOLD:
-                    results.append(SearchResult(
-                        photo_id=photo_id,
-                        event_id=event_id,
-                        similarity_score=similarity_score,
-                        thumbnail_url=f"/api/photos/{photo_id}/thumbnail",
-                        photo_url=f"/api/photos/{photo_id}"
-                    ))
+                results.append(SearchResult(
+                    photo_id=photo_id,
+                    event_id=event_id,
+                    similarity_score=best_sim,
+                    thumbnail_url=f"/api/photos/{photo_id}/thumbnail",
+                    photo_url=f"/api/photos/{photo_id}"
+                ))
         
-        # Sort by similarity score (descending - best matches first)
         results.sort(key=lambda x: x.similarity_score, reverse=True)
-        
+        logging.info(f"Event {event_id} selfie search: {len(results)} photos above threshold (photo_best_similarity count={len(photo_best_similarity)}, threshold={MINIMUM_MATCH_THRESHOLD})")
         return results
         
     except Exception as e:
@@ -709,21 +717,24 @@ async def search_by_selfie(
             content = await file.read()
             await f.write(content)
         
-        # Generate embedding from selfie
+        # Generate embedding from selfie (same detector as organizer for consistency)
         embedding_result = DeepFace.represent(
             img_path=str(selfie_path),
-            model_name='Facenet',
-            detector_backend='opencv',
+            model_name=FACE_MODEL,
+            detector_backend=FACE_DETECTOR,
             enforce_detection=False
         )
         
         if not embedding_result:
             raise HTTPException(status_code=400, detail="No face detected in selfie")
         
-        query_embedding = np.array(embedding_result[0]['embedding'])
+        query_embedding = np.array(embedding_result[0]['embedding']).astype('float32')
+        norm = np.linalg.norm(query_embedding)
+        if norm > 0:
+            query_embedding = query_embedding / norm
         
         # Search for similar faces
-        results = await search_faces(event_id, query_embedding, k=50)
+        results = await search_faces(event_id, query_embedding)
         
         # Clean up
         selfie_path.unlink()
