@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Camera, Search, ArrowRight } from 'lucide-react';
+import { Camera, Search, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,7 +46,10 @@ const AttendeeEntry = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <Button variant="ghost" className="absolute top-4 left-4" onClick={() => navigate('/')}>
+        <ArrowLeft className="w-6 h-6" /> Back
+      </Button>
       <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
         {/* Left side - Info */}
         <motion.div
@@ -54,7 +57,7 @@ const AttendeeEntry = () => {
           animate={{ opacity: 1, x: 0 }}
           className="text-center lg:text-left"
         >
-          <div className="inline-flex items-center gap-2 mb-6">
+          <div className="inline-flex items-center gap-2 mb-6 " onClick={()=>{navigate('/')}}>
             <Camera className="w-8 h-8 text-indigo-600" />
             <span className="font-bold text-2xl" style={{ fontFamily: 'Outfit, sans-serif' }}>FaceShot</span>
           </div>
