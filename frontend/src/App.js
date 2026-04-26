@@ -38,7 +38,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/attend" element={<AttendeeEntry />} />
+          <Route path="/attendjoin" element={<AttendeeEntry />} />
           <Route path="/attend/:eventId/selfie" element={<SelfieCapture />} />
           <Route path="/attend/:eventId/gallery" element={<PhotoGallery />} />
         </Routes>

@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Camera, Search, ArrowRight, Shield, Zap, Image } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Camera, Search, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import api from '@/utils/api';
 
-const AttendeeEntry = () => {
-  const navigate = useNavigate();
-  const [eventCode, setEventCode] = useState('');
+export default function AttendeeEntry() {
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleFind = async (e) => {
     e.preventDefault();
+    if (!code.trim()) return;
     setLoading(true);
     try {
-      const response = await api.get(`/events/code/${eventCode.toUpperCase()}`);
+      const response = await api.get(`/events/code/${code.toUpperCase().trim()}`);
       const event = response.data;
       
       if (event.status === 'processing') {
@@ -46,115 +44,85 @@ const AttendeeEntry = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
-        {/* Left side - Info */}
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-center lg:text-left"
-        >
-          <div className="inline-flex items-center gap-2 mb-6">
-            <Camera className="w-8 h-8 text-indigo-600" />
-            <span className="font-bold text-2xl" style={{ fontFamily: 'Outfit, sans-serif' }}>FaceShot</span>
+    <div className="min-h-screen bg-slate-950 flex">
+      {/* Left brand panel */}
+      <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col justify-center px-16">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-700 to-purple-800" />
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
+        <div className="relative z-10">
+          <Link to="/Landing" className="flex items-center gap-2.5 mb-14">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+              <Camera className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-white font-bold text-xl">FaceShot</span>
+          </Link>
+          <h2 className="text-4xl font-bold text-white mb-4 leading-tight">Find every photo<br />of yourself</h2>
+          <p className="text-indigo-200 text-lg mb-12">Enter your event code and take one selfie. AI instantly finds all your photos.</p>
+          <div className="space-y-6">
+            {[
+              { icon: Search, title: 'Enter Event Code', desc: 'Get the code from your event organizer' },
+              { icon: Camera, title: 'Take a Selfie', desc: 'Quick photo for face recognition' },
+              { icon: Image, title: 'Get Your Photos', desc: 'Instantly see all photos with your face' },
+            ].map(step => (
+              <div key={step.title} className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <step.icon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">{step.title}</p>
+                  <p className="text-indigo-200/80 text-sm">{step.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            Find Your Event Photos
-          </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400 mb-8">
-            Enter your event code to get started. You'll take a selfie and instantly see all photos you're in.
-          </p>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 font-semibold flex-shrink-0">
-                1
+          <div className="flex gap-6 mt-12 pt-8 border-t border-white/15">
+            {[{ icon: Shield, label: 'Privacy First' }, { icon: Zap, label: 'Under 3 seconds' }].map(({ icon: Ic, label }) => (
+              <div key={label} className="flex items-center gap-2 text-indigo-200/80 text-sm">
+                {React.createElement(Ic, { className: "w-4 h-4" })}{label}
               </div>
-              <div className="text-left">
-                <p className="font-semibold mb-1">Enter Event Code</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Get the code from your event organizer</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 font-semibold flex-shrink-0">
-                2
-              </div>
-              <div className="text-left">
-                <p className="font-semibold mb-1">Take a Selfie</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Quick photo for face recognition</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 font-semibold flex-shrink-0">
-                3
-              </div>
-              <div className="text-left">
-                <p className="font-semibold mb-1">Get Your Photos</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Instantly see all photos with your face</p>
-              </div>
-            </div>
+            ))}
           </div>
-        </motion.div>
+        </div>
+      </div>
 
-        {/* Right side - Form */}
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 shadow-xl"
-        >
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/20 mb-4">
-              <Search className="w-8 h-8 text-indigo-600" />
+      {/* Right form panel */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+          <Link to="/Landing" className="flex items-center gap-2.5 mb-12 lg:hidden">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+              <Camera className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Enter Event Code</h2>
-            <p className="text-slate-600 dark:text-slate-400">Got your code? Let's find your photos!</p>
+            <span className="text-white font-bold text-xl">FaceShot</span>
+          </Link>
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Find Your Photos</h1>
+            <p className="text-slate-500">Enter the event code from your organizer</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleFind} className="space-y-4">
             <div>
-              <Label htmlFor="event-code">Event Code</Label>
-              <Input
-                data-testid="event-code-input"
-                id="event-code"
-                type="text"
-                placeholder="e.g., ABC12345"
-                value={eventCode}
-                onChange={(e) => setEventCode(e.target.value.toUpperCase())}
-                className="mt-1.5 h-14 text-center text-2xl font-mono tracking-wider"
+              <label className="text-slate-400 text-sm mb-2 block">Event Code</label>
+              <input value={code} onChange={e => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g., ABC123"
                 maxLength={8}
-                required
-              />
+                className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-4 text-white placeholder-slate-700 focus:outline-none focus:border-indigo-500 text-xl font-mono tracking-[0.3em] uppercase text-center transition-colors" />
             </div>
-            <Button
-              data-testid="find-photos-button"
-              type="submit"
-              className="w-full h-12 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-              disabled={loading}
-            >
-              {loading ? 'Finding Event...' : (
-                <>
-                  Find My Photos
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </Button>
+            <button type="submit" disabled={loading || !code.trim()}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-4 rounded-xl transition-all disabled:opacity-40 shadow-xl shadow-indigo-500/20">
+              {loading ? (
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Searching...</>
+              ) : (<>Find My Photos <ArrowRight className="w-4 h-4" /></>)}
+            </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Don't have a code?{' '}
-              <button
-                onClick={() => navigate('/')}
-                className="text-indigo-600 hover:underline font-medium"
-              >
-                Contact your organizer
-              </button>
-            </p>
-          </div>
+          <p className="text-center text-slate-600 text-sm mt-8">
+            Are you an organizer?{' '}
+            <Link to="/OrganizerDashboard" className="text-indigo-400 hover:text-indigo-300 transition-colors">Go to Dashboard →</Link>
+          </p>
         </motion.div>
       </div>
     </div>
   );
-};
-
-export default AttendeeEntry;
+}

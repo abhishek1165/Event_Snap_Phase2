@@ -131,7 +131,7 @@ const SelfieCapture = () => {
           <Button
             data-testid="back-button"
             variant="ghost"
-            onClick={() => navigate('/attend')}
+            onClick={() => navigate('/attendjoin')}
             className="gap-2 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />

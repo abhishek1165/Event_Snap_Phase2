@@ -1,247 +1,187 @@
 import React, { useState } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Download, Camera, Image, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Download, ArrowLeft, ExternalLink, Star, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-const PhotoGallery = () => {
-  const { eventId } = useParams();
-  const location = useLocation();
+export default function PhotoGallery() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ REAL DATA (from PhotoGallery)
   const results = location.state?.results || [];
   const event = location.state?.event;
+
   const [selectedPhotos, setSelectedPhotos] = useState(new Set());
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-  // Thresholds (should match backend environment variables)
-  const MINIMUM_MATCH_THRESHOLD = parseFloat(process.env.REACT_APP_MINIMUM_MATCH_THRESHOLD || '0.5');
-  const HIGH_CONFIDENCE_THRESHOLD = parseFloat(process.env.REACT_APP_HIGH_CONFIDENCE_THRESHOLD || '0.7');
+  const HIGH_CONFIDENCE_THRESHOLD = 0.7;
 
-  const getConfidenceLabel = (similarity) => {
-    if (similarity >= HIGH_CONFIDENCE_THRESHOLD) {
-      return { label: 'High Confidence', class: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' };
-    } else {
-      return { label: 'Possible Match', class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' };
-    }
+  const getConfidence = (score) => {
+    return score >= HIGH_CONFIDENCE_THRESHOLD
+      ? "High Confidence"
+      : "Possible Match";
   };
 
-  const togglePhotoSelection = (photoId) => {
-    const newSelected = new Set(selectedPhotos);
-    if (newSelected.has(photoId)) {
-      newSelected.delete(photoId);
-    } else {
-      newSelected.add(photoId);
-    }
-    setSelectedPhotos(newSelected);
+  const toggleSelect = (id) => {
+    const newSet = new Set(selectedPhotos);
+    newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+    setSelectedPhotos(newSet);
   };
 
-  const handleBulkDownload = () => {
+  const download = (photo) => {
+    const url = `${BACKEND_URL}${photo.photo_url}`;
+    window.open(url, '_blank');
+  };
+
+  const bulkDownload = () => {
     if (selectedPhotos.size === 0) {
-      toast.error('Please select at least one photo to download');
-      return;
+      return toast.error("Select photos first");
     }
-    
-    selectedPhotos.forEach(photoId => {
-      const url = `${BACKEND_URL}${results.find(r => r.photo_id === photoId)?.photo_url}`;
-      window.open(url, '_blank');
+
+    selectedPhotos.forEach(id => {
+      const photo = results.find(r => r.photo_id === id);
+      if (photo) window.open(`${BACKEND_URL}${photo.photo_url}`);
     });
-    
-    toast.success(`Downloading ${selectedPhotos.size} photo(s)...`);
-  };
 
-  const handleDownload = async (photoId) => {
-    try {
-      const url = `${BACKEND_URL}${results.find(r => r.photo_id === photoId)?.photo_url}`;
-      window.open(url, '_blank');
-      toast.success('Opening photo...');
-    } catch (error) {
-      toast.error('Failed to download photo');
-    }
+    toast.success(`Downloading ${selectedPhotos.size} photos`);
   };
-
-  if (results.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center">
-          <p className="text-lg text-slate-600 dark:text-slate-400 mb-4">No results found</p>
-          <Button onClick={() => navigate('/attend')}>Try Another Event</Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Button
-            data-testid="back-button"
-            variant="ghost"
-            onClick={() => navigate('/attend')}
-            className="gap-2 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Events
-          </Button>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-              {results.length} Photos Found!
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">
-              {event?.title || 'Your event'} • Click any photo to view or download
-            </p>
+    <div className="min-h-screen bg-slate-950">
+
+      {/* HEADER (UI from PhotoResults) */}
+      <div className="border-b border-white/5 bg-slate-900/20 backdrop-blur sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+          <button onClick={() => navigate('/attendjoin')}
+            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm">
+            <ArrowLeft className="w-4 h-4" /> New Search
+          </button>
+
+          <div className="flex items-center gap-2">
+            <Camera className="text-white" />
+            <span className="text-white font-bold">FaceShot</span>
           </div>
+
+          {results.length > 0 && (
+            <button
+              onClick={bulkDownload}
+              className="text-xs px-3 py-2 rounded-xl bg-indigo-500/10 text-indigo-300"
+            >
+              Download ({selectedPhotos.size})
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 py-12">
+
+        {/* TOP SECTION */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mb-10">
+          <div className={`w-20 h-20 mx-auto rounded-3xl flex items-center justify-center mb-4 ${
+            results.length > 0
+              ? 'bg-gradient-to-br from-emerald-500 to-teal-600'
+              : 'bg-slate-700'
+          }`}>
+            {results.length > 0
+              ? <CheckCircle className="text-white w-10 h-10" />
+              : <Image className="text-gray-400 w-10 h-10" />}
+          </div>
+
+          <h1 className="text-3xl font-bold text-white">
+            {results.length > 0
+              ? `${results.length} Photos Found`
+              : "No Photos Found"}
+          </h1>
+
+          {event && (
+            <p className="text-slate-400 mt-2">{event.title}</p>
+          )}
         </motion.div>
 
-        {/* Selection Controls */}
-        {results.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-3 items-center">
-            <Button
-              onClick={handleBulkDownload}
-              disabled={selectedPhotos.size === 0}
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+        {/* EMPTY STATE */}
+        {results.length === 0 && (
+          <div className="text-center">
+            <button
+              onClick={() => navigate('/attend')}
+              className="bg-indigo-600 px-6 py-3 rounded-xl text-white"
             >
-              <Download className="w-4 h-4" />
-              Download Selected ({selectedPhotos.size})
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setSelectedPhotos(new Set(results.map(r => r.photo_id)))}
-              className="gap-2"
-            >
-              <Check className="w-4 h-4" />
-              Select All
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setSelectedPhotos(new Set())}
-              disabled={selectedPhotos.size === 0}
-              className="gap-2"
-            >
-              Clear Selection
-            </Button>
+              Try Again
+            </button>
           </div>
         )}
 
-        {/* Masonry Gallery */}
-        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
-          {results.map((result, index) => {
-            const isSelected = selectedPhotos.has(result.photo_id);
-            const confidence = getConfidenceLabel(result.similarity_score);
-            return (
-              <motion.div
-                key={result.photo_id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="break-inside-avoid mb-4 group"
-                data-testid={`photo-card-${result.photo_id}`}
-              >
-                <div 
-                  className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer ${
-                    isSelected 
-                      ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' 
-                      : 'border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl hover:border-indigo-300'
-                  }`}
-                  onClick={() => togglePhotoSelection(result.photo_id)}
-                >
-                  <img
-                    src={`${BACKEND_URL}${result.thumbnail_url}`}
-                    alt={`Photo ${index + 1}`}
-                    className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                  
-                  {/* Selection indicator */}
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
-                    </div>
-                  )}
-                  
-                  {/* Confidence badge */}
-                  <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium ${confidence.class}`}>
-                    {confidence.label}
-                  </div>
-                  
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <div className="text-white mb-3">
-                        <div className="text-sm font-medium">Match Confidence</div>
-                        <div className="text-lg font-bold">{(result.similarity_score * 100).toFixed(0)}%</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          data-testid={`download-button-${result.photo_id}`}
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownload(result.photo_id);
-                          }}
-                          className="flex-1 gap-2 bg-white text-slate-900 hover:bg-slate-100"
-                        >
-                          <Download className="w-3 h-3" />
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={isSelected ? "default" : "secondary"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePhotoSelection(result.photo_id);
-                          }}
-                          className="gap-2"
-                        >
-                          {isSelected ? (
-                            <>
-                              <Check className="w-3 h-3" />
-                              Selected
-                            </>
-                          ) : (
-                            'Select'
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+        {/* GRID (UI from PhotoResults + Logic from PhotoGallery) */}
+        {results.length > 0 && (
+          <>
+            <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
 
-        {/* Footer CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-12 text-center p-8 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700"
-        >
-          <h3 className="text-xl font-semibold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            Love This?
-          </h3>
-          <p className="text-slate-600 dark:text-slate-400 mb-4">
-            Create your own event and let guests find their photos instantly
-          </p>
-          <Button
-            data-testid="create-event-cta-button"
-            onClick={() => navigate('/auth')}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            Create Event
-            <ExternalLink className="w-4 h-4" />
-          </Button>
-        </motion.div>
+              {results.map((photo, i) => {
+                const isSelected = selectedPhotos.has(photo.photo_id);
+
+                return (
+                  <motion.div
+                    key={photo.photo_id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="relative group rounded-xl overflow-hidden cursor-pointer break-inside-avoid"
+                    onClick={() => toggleSelect(photo.photo_id)}
+                  >
+                    <img
+                      src={`${BACKEND_URL}${photo.thumbnail_url}`}
+                      className="w-full object-cover group-hover:scale-105 transition"
+                    />
+
+                    {/* CONFIDENCE (REAL LOGIC) */}
+                    <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                      {getConfidence(photo.similarity_score)}
+                    </div>
+
+                    {/* SELECTED */}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 bg-indigo-600 w-6 h-6 flex items-center justify-center rounded-full">
+                        ✓
+                      </div>
+                    )}
+
+                    {/* HOVER */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition">
+                      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-white text-xs">
+                        <span>
+                          {(photo.similarity_score * 100).toFixed(0)}%
+                        </span>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            download(photo);
+                          }}
+                          className="bg-white/20 p-2 rounded"
+                        >
+                          <Download size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* BULK DOWNLOAD */}
+            <div className="text-center mt-10">
+              <button
+                onClick={bulkDownload}
+                className="bg-indigo-600 px-8 py-4 rounded-xl text-white"
+              >
+                Download Selected ({selectedPhotos.size})
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
-};
-
-export default PhotoGallery;
+}
