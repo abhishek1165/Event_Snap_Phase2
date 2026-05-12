@@ -2,13 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Camera, Search, ArrowRight, Shield, Zap, Image } from 'lucide-react';
 import { motion } from 'framer-motion';
-<<<<<<< HEAD
-=======
-import { Camera, Search, ArrowRight, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
->>>>>>> 39be59b59699e4f8ed1bb4249089df5e14e72a18
 import { toast } from 'sonner';
 import api from '@/utils/api';
 
@@ -51,7 +44,6 @@ export default function AttendeeEntry() {
   };
 
   return (
-<<<<<<< HEAD
     <div className="min-h-screen bg-slate-950 flex">
       {/* Left brand panel */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col justify-center px-16">
@@ -59,7 +51,7 @@ export default function AttendeeEntry() {
         <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
         <div className="relative z-10">
-          <Link to="/Landing" className="flex items-center gap-2.5 mb-14">
+          <Link to="/" className="flex items-center gap-2.5 mb-14">
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
               <Camera className="w-5 h-5 text-white" />
             </div>
@@ -83,27 +75,11 @@ export default function AttendeeEntry() {
                 </div>
               </div>
             ))}
-=======
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
-      <Button variant="ghost" className="absolute top-4 left-4" onClick={() => navigate('/')}>
-        <ArrowLeft className="w-6 h-6" /> Back
-      </Button>
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
-        {/* Left side - Info */}
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-center lg:text-left"
-        >
-          <div className="inline-flex items-center gap-2 mb-6 " onClick={()=>{navigate('/')}}>
-            <Camera className="w-8 h-8 text-indigo-600" />
-            <span className="font-bold text-2xl" style={{ fontFamily: 'Outfit, sans-serif' }}>FaceShot</span>
->>>>>>> 39be59b59699e4f8ed1bb4249089df5e14e72a18
           </div>
           <div className="flex gap-6 mt-12 pt-8 border-t border-white/15">
             {[{ icon: Shield, label: 'Privacy First' }, { icon: Zap, label: 'Under 3 seconds' }].map(({ icon: Ic, label }) => (
               <div key={label} className="flex items-center gap-2 text-indigo-200/80 text-sm">
-                {React.createElement(Ic, { className: "w-4 h-4" })}{label}
+                {React.createElement(Ic, { className: 'w-4 h-4' })}{label}
               </div>
             ))}
           </div>
@@ -113,7 +89,7 @@ export default function AttendeeEntry() {
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <Link to="/Landing" className="flex items-center gap-2.5 mb-12 lg:hidden">
+          <Link to="/" className="flex items-center gap-2.5 mb-12 lg:hidden">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
               <Camera className="w-5 h-5 text-white" />
             </div>
@@ -143,7 +119,7 @@ export default function AttendeeEntry() {
 
           <p className="text-center text-slate-600 text-sm mt-8">
             Are you an organizer?{' '}
-            <Link to="/OrganizerDashboard" className="text-indigo-400 hover:text-indigo-300 transition-colors">Go to Dashboard →</Link>
+            <Link to="/dashboard" className="text-indigo-400 hover:text-indigo-300 transition-colors">Go to Dashboard →</Link>
           </p>
         </motion.div>
       </div>

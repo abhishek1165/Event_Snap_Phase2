@@ -24,28 +24,74 @@ export default function PhotoGallery() {
       : "Possible Match";
   };
 
+  const guessFilenameFromUrl = (url, fallback) => {
+    try {
+      const last = new URL(url).pathname.split('/').filter(Boolean).pop();
+      return last || fallback;
+    } catch {
+      const parts = String(url).split('?')[0].split('/').filter(Boolean);
+      return parts[parts.length - 1] || fallback;
+    }
+  };
+
+  const downloadUrlAsFile = async (url, filename) => {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+
   const toggleSelect = (id) => {
     const newSet = new Set(selectedPhotos);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
     setSelectedPhotos(newSet);
   };
 
-  const download = (photo) => {
-    const url = `${BACKEND_URL}${photo.photo_url}`;
-    window.open(url, '_blank');
+  const download = async (photo) => {
+    try {
+      const url = `${BACKEND_URL}${photo.photo_url}`;
+      const filename = guessFilenameFromUrl(url, `photo-${photo.photo_id}.jpg`);
+      await downloadUrlAsFile(url, filename);
+    } catch (err) {
+      toast.error(err?.message || "Download failed");
+    }
   };
 
-  const bulkDownload = () => {
+  const bulkDownload = async () => {
     if (selectedPhotos.size === 0) {
       return toast.error("Select photos first");
     }
 
-    selectedPhotos.forEach(id => {
-      const photo = results.find(r => r.photo_id === id);
-      if (photo) window.open(`${BACKEND_URL}${photo.photo_url}`);
-    });
+    const photos = Array.from(selectedPhotos)
+      .map((id) => results.find((r) => r.photo_id === id))
+      .filter(Boolean);
 
-    toast.success(`Downloading ${selectedPhotos.size} photos`);
+    let ok = 0;
+    for (const photo of photos) {
+      try {
+        const url = `${BACKEND_URL}${photo.photo_url}`;
+        const filename = guessFilenameFromUrl(url, `photo-${photo.photo_id}.jpg`);
+        await downloadUrlAsFile(url, filename);
+        ok += 1;
+      } catch {
+        // ignore per-photo failure; we'll show a summary toast below
+      }
+    }
+
+    if (ok === photos.length) toast.success(`Downloading ${ok} photos`);
+    else if (ok > 0) toast.success(`Downloaded ${ok}/${photos.length} photos`);
+    else toast.error("Could not download selected photos");
   };
 
   return (
