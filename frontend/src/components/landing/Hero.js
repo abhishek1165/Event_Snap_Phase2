@@ -1,107 +1,127 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Camera, Sparkles, ArrowRight, Users, Zap, Shield } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Eyebrow, Btn, LogoMark, T, MONO, DISPLAY, R } from "./shared";
+import Viewfinder from "./Viewfinder";
 
-export default function Hero() {
+export default function Hero({ scrolled }) {
+  const navigate   = useNavigate();
+  const glowRef    = useRef(null);
+  const sectionRef = useRef(null);
+
+  // ── Mouse-follow glow animation ──────────────────────────────────────
+  useEffect(() => {
+    let gsap, xTo, yTo, cancelled = false;
+    const init = async () => {
+      const mod = await import("gsap");
+      gsap = mod.gsap || mod.default;
+      if (cancelled || !glowRef.current || !sectionRef.current) return;
+      if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+
+      xTo = gsap.quickTo(glowRef.current, "x", { duration: 1.4, ease: "power3" });
+      yTo = gsap.quickTo(glowRef.current, "y", { duration: 1.4, ease: "power3" });
+
+      const onMove = (e) => {
+        const r = sectionRef.current.getBoundingClientRect();
+        xTo(e.clientX - r.left - 320);
+        yTo(e.clientY - r.top  - 320);
+      };
+      sectionRef.current.addEventListener("mousemove", onMove);
+      return () => { if (sectionRef.current) sectionRef.current.removeEventListener("mousemove", onMove); };
+    };
+    let cleanup;
+    init().then(fn => { cleanup = fn; });
+    return () => { cancelled = true; if (cleanup) cleanup(); };
+  }, []);
+
+  // ── Hero entrance + stat count-up ────────────────────────────────────
+  useEffect(() => {
+    let ctx, cancelled = false;
+    const init = async () => {
+      const mod = await import("gsap");
+      const gsap = mod.gsap || mod.default;
+      if (cancelled) return;
+      ctx = gsap.context(() => {
+        if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+        gsap.timeline({ defaults: { ease: "power3.out" } })
+          .from("[data-hero-eye]",  { opacity: 0, y: 10, duration: .5 })
+          .from("[data-hero-h1]",   { opacity: 0, y: 22, duration: .7 }, "-=.3")
+          .from("[data-hero-lead]", { opacity: 0, y: 18, duration: .6 }, "-=.4")
+          .from("[data-hero-btn]",  { opacity: 0, y: 14, stagger: .1, duration: .5 }, "-=.35")
+          .from("[data-hero-stat]", { opacity: 0, y: 14, stagger: .1, duration: .5 }, "-=.3")
+          .from("[data-hero-vf]",   { opacity: 0, y: 24, duration: .8 }, "-=.9");
+
+        const proxy = { photos: 0, speed: 0, conf: 0 };
+        gsap.to(proxy, { photos: 50, speed: 3, conf: 98.7, duration: 1.8, delay: .6, ease: "power2.out",
+          onUpdate: () => {
+            const p = document.getElementById("ls-photos");
+            const s = document.getElementById("ls-speed");
+            const c = document.getElementById("ls-conf");
+            if (p) p.textContent = Math.round(proxy.photos);
+            if (s) s.textContent = Math.round(proxy.speed);
+            if (c) c.textContent  = proxy.conf.toFixed(1);
+          },
+        });
+      });
+    };
+    init();
+    return () => { cancelled = true; if (ctx) ctx.revert(); };
+  }, []);
+
   return (
-    <section className="relative min-h-screen bg-slate-950 flex flex-col overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/60 via-slate-950 to-violet-950/40" />
-        <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-indigo-600/8 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-violet-600/8 rounded-full blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '64px 64px' }}
-        />
-      </div>
+    <section ref={sectionRef} style={{ position: "relative", padding: "168px 0 120px", overflow: "hidden" }}>
+      {/* ── Mouse-follow radial glow ── */}
+      <div ref={glowRef} style={{
+        position: "absolute", width: 640, height: 640, borderRadius: "50%",
+        background: "radial-gradient(circle,rgba(109,94,245,.22),transparent 65%)",
+        top: -260, left: -180, pointerEvents: "none", filter: "blur(10px)",
+        willChange: "transform",
+      }} />
 
-      {/* Navbar */}
-      <nav className="relative z-10 max-w-7xl mx-auto w-full px-6 md:px-10 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <Camera className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-white font-bold text-xl">FaceShot</span>
-        </div>
-        <div className="hidden md:flex items-center gap-8">
-          <a href="#how-it-works" className="text-slate-400 hover:text-white text-sm transition-colors">How it works</a>
-          <a href="#features" className="text-slate-400 hover:text-white text-sm transition-colors">Features</a>
-          <Link to="/attendjoin" className="text-slate-400 hover:text-white text-sm transition-colors">Find My Photos</Link>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/auth" className="text-slate-300 hover:text-white text-sm px-4 py-2 rounded-lg hover:bg-white/5 transition-all">Sign In</Link>
-          <Link to="/auth" className="text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/25">
-            Get Started
-          </Link>
-        </div>
-      </nav>
+      {/* ── Ambient secondary glow (static) ── */}
+      <div style={{
+        position: "absolute", width: 400, height: 400, borderRadius: "50%",
+        background: "radial-gradient(circle,rgba(52,211,153,.08),transparent 65%)",
+        bottom: -100, right: -50, pointerEvents: "none", filter: "blur(24px)",
+      }} />
 
-      {/* Hero Content */}
-      <div className="relative z-10 flex-1 flex items-center">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 w-full py-16">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            {/* Left */}
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-              <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1.5 mb-7">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="text-indigo-300 text-xs font-medium tracking-wide">AI-Powered Face Recognition</span>
-              </div>
-              <h1 className="text-5xl md:text-6xl font-bold text-white leading-[1.08] mb-6 tracking-tight">
-                Find Your Face in
-                <span className="block bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent mt-1">
-                  Every Event Photo
-                </span>
-              </h1>
-              <p className="text-slate-400 text-lg leading-relaxed mb-8 max-w-lg">
-                Stop searching through thousands of photos manually. One selfie is all it takes — our AI instantly finds every photo of you.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Link to="/auth" className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-xl shadow-indigo-500/25 text-sm">
-                  For Organizers <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link to="/attendjoin" className="inline-flex items-center gap-2 border border-white/10 hover:border-white/20 text-white font-medium px-6 py-3.5 rounded-xl transition-all hover:bg-white/5 text-sm">
-                  Find My Photos
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-6 mt-10 pt-8 border-t border-white/5">
-                <div className="flex items-center gap-2 text-slate-400 text-sm"><Users className="w-4 h-4 text-indigo-400" />50K+ Photos Processed</div>
-                <div className="flex items-center gap-2 text-slate-400 text-sm"><Zap className="w-4 h-4 text-indigo-400" />Results in 3 seconds</div>
-                <div className="flex items-center gap-2 text-slate-400 text-sm"><Shield className="w-4 h-4 text-indigo-400" />Privacy-first design</div>
-              </div>
-            </motion.div>
-
-            {/* Right - Mockup */}
-            <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative hidden md:block">
-              <div className="relative">
-                <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-                  <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=380&fit=crop" alt="Event" className="w-full h-60 object-cover opacity-75" />
-                  <div className="p-5 flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-500 text-xs mb-1">Tech Conference 2026</p>
-                      <p className="text-white font-bold text-lg">312 Photos Found</p>
-                    </div>
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1.5 rounded-full font-semibold">✓ 18 Matched</div>
-                  </div>
+      <div className="lw">
+        <div className="lhg">
+          {/* LEFT */}
+          <div>
+            <div data-hero-eye>
+              <Eyebrow style={{ marginBottom: 22 }}>Face matching for event photography</Eyebrow>
+            </div>
+            <h1 data-hero-h1 style={{ ...R, fontSize: "clamp(2.5rem,4.6vw,3.9rem)", lineHeight: 1.06, margin: "22px 0" }}>
+              Your face is<br />the{" "}
+              <span style={{ background: "linear-gradient(100deg,#8b7bff,#34d399 90%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+                search bar.
+              </span>
+            </h1>
+            <p data-hero-lead style={{ fontSize: "1.14rem", color: T.dim, maxWidth: 480, marginBottom: 34 }}>
+              One selfie in. Every photo you are actually in, out — matched by confidence, not by luck, in the time it takes to read this sentence.
+            </p>
+            <div data-hero-btn style={{ display: "flex", gap: 14, marginBottom: 52, flexWrap: "wrap" }}>
+              <Btn solid onClick={() => navigate("/auth")}>For organizers →</Btn>
+              <Btn onClick={() => navigate("/attendjoin")}>Find my photos</Btn>
+            </div>
+            <div style={{ display: "flex", gap: 40, flexWrap: "wrap" }}>
+              {[
+                { id: "ls-photos", pre: "",  suf: "K+", label: "Photos scanned", accessible: "50K+ Photos scanned" },
+                { id: "ls-speed",  pre: "<", suf: "s",  label: "Median match time", accessible: "Under 3 seconds Median match time" },
+                { id: "ls-conf",   pre: "",  suf: "%",  label: "Typical confidence", accessible: "98.7% Typical confidence" },
+              ].map(({ id, pre, suf, label, accessible }) => (
+                <div key={id} data-hero-stat aria-label={accessible}>
+                  <b style={{ display: "block", ...R, fontSize: "1.7rem" }} aria-hidden="true">
+                    {pre}<span id={id}>0</span>{suf}
+                  </b>
+                  <span style={{ fontFamily: MONO, fontSize: ".72rem", letterSpacing: ".06em", color: T.faint, textTransform: "uppercase" }}>{label}</span>
                 </div>
-                <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-5 -right-5 bg-slate-900 border border-indigo-500/30 rounded-2xl px-4 py-3 shadow-2xl shadow-black/50">
-                  <p className="text-indigo-400 text-xs font-medium mb-0.5">Face detected</p>
-                  <p className="text-white text-sm font-bold">98.7% confidence</p>
-                </motion.div>
-                <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                  className="absolute -bottom-5 -left-5 bg-slate-900 border border-violet-500/30 rounded-2xl px-4 py-3 shadow-2xl shadow-black/50 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center">
-                    <Camera className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-500 text-xs">Selfie uploaded</p>
-                    <p className="text-white text-sm font-semibold">Matching...</p>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
+              ))}
+            </div>
           </div>
+
+          {/* RIGHT — Viewfinder */}
+          <div data-hero-vf><Viewfinder /></div>
         </div>
       </div>
     </section>

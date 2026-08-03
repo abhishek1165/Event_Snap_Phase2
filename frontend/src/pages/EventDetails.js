@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -24,14 +24,16 @@ const EventDetails = () => {
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-  useEffect(() => {
-    loadEventDetails();
-    loadPhotos();
-    const interval = setInterval(loadStatus, 3000);
-    return () => clearInterval(interval);
+  const loadStatus = useCallback(async () => {
+    try {
+      const response = await api.get(`/events/${eventId}/status`);
+      setStatus(response.data);
+    } catch (error) {
+      console.error('Failed to load status');
+    }
   }, [eventId]);
 
-  const loadEventDetails = async () => {
+  const loadEventDetails = useCallback(async () => {
     try {
       const response = await api.get(`/events/${eventId}`);
       setEvent(response.data);
@@ -41,25 +43,23 @@ const EventDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId, loadStatus]);
 
-  const loadPhotos = async () => {
+  const loadPhotos = useCallback(async () => {
     try {
       const response = await api.get(`/events/${eventId}/photos`);
       setPhotos(response.data);
     } catch (error) {
       console.error('Failed to load photos');
     }
-  };
+  }, [eventId]);
 
-  const loadStatus = async () => {
-    try {
-      const response = await api.get(`/events/${eventId}/status`);
-      setStatus(response.data);
-    } catch (error) {
-      console.error('Failed to load status');
-    }
-  };
+  useEffect(() => {
+    loadEventDetails();
+    loadPhotos();
+    const interval = setInterval(loadStatus, 3000);
+    return () => clearInterval(interval);
+  }, [eventId, loadEventDetails, loadPhotos, loadStatus]);
 
   const handleDeletePhoto = async () => {
     if (!photoToDelete) return;
