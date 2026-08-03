@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Webcam from 'react-webcam';
-import { Camera, Check, Loader2, ArrowLeft, AlertCircle, Upload } from 'lucide-react';
+import { Camera, Check, CircleCheck, Loader2, ArrowLeft, AlertCircle, Monitor, Smartphone, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import api from '@/utils/api';
@@ -19,6 +19,7 @@ const SelfieCapture = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [uploadMode, setUploadMode] = useState(false); // Toggle between camera and upload
   const [uploadedFile, setUploadedFile] = useState(null);
+  const DeviceIcon = isMobile ? Smartphone : Monitor;
 
   // Detect if user is on mobile device
   useEffect(() => {
@@ -141,7 +142,7 @@ const SelfieCapture = () => {
             Take Your Selfie
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            {event?.title || 'Event'} • Look at the camera and smile!
+            {event?.title || 'Event'} - look at the camera and smile.
           </p>
         </motion.div>
 
@@ -316,7 +317,8 @@ const SelfieCapture = () => {
           className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-800"
         >
           <h3 className="font-semibold mb-3 text-blue-900 dark:text-blue-300">
-            {isMobile ? '📱 Mobile Device Detected' : '💻 Desktop/Laptop Detected'}
+            <DeviceIcon className="inline-block w-4 h-4 mr-2 align-[-2px]" />
+            {isMobile ? 'Mobile camera ready' : 'Webcam ready'}
           </h3>
           <p className="text-sm text-blue-800 dark:text-blue-300">
             Using {isMobile ? 'your mobile device\'s front camera' : 'this device\'s webcam'} for selfie capture.
@@ -332,10 +334,17 @@ const SelfieCapture = () => {
         >
           <h3 className="font-semibold mb-3 text-indigo-900 dark:text-indigo-300">Tips for best results:</h3>
           <ul className="space-y-2 text-sm text-indigo-800 dark:text-indigo-300">
-            <li>• Face the camera directly</li>
-            <li>• Make sure your face is well-lit</li>
-            <li>• Remove sunglasses or masks if possible</li>
-            <li>• Keep a neutral expression similar to event photos</li>
+            {[
+              'Face the camera directly',
+              'Make sure your face is well-lit',
+              'Remove sunglasses or masks if possible',
+              'Keep a neutral expression similar to event photos',
+            ].map((tip) => (
+              <li key={tip} className="flex items-start gap-2">
+                <CircleCheck className="w-4 h-4 mt-0.5 flex-none text-indigo-500 dark:text-indigo-300" />
+                <span>{tip}</span>
+              </li>
+            ))}
           </ul>
         </motion.div>
       </div>

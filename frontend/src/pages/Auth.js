@@ -32,7 +32,7 @@ const Auth = () => {
       if (response.data.user.role === 'organizer') {
         navigate('/dashboard');
       } else {
-        navigate('/attend');
+        navigate('/attendjoin');
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Login failed');
@@ -53,7 +53,7 @@ const Auth = () => {
       if (response.data.user.role === 'organizer') {
         navigate('/dashboard');
       } else {
-        navigate('/attend');
+        navigate('/attendjoin');
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Signup failed');

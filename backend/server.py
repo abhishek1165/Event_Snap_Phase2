@@ -352,7 +352,7 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = None
         
         # Log for debugging
         top_d = distances[0][: min(5, len(distances[0]))]
-        top_similarities = [float(1.0 - (d * d / 2.0)) for d in top_d]
+        top_similarities = [float(1.0 - (d / 2.0)) for d in top_d]
         logging.info(f"Event {event_id} selfie search: index has {n_vectors} faces, top5 similarities={[round(s, 3) for s in top_similarities]}, threshold={MINIMUM_MATCH_THRESHOLD}")
         
         # Per-photo BEST similarity: a photo is included if ANY face in it meets threshold (use best score for that photo)
@@ -363,7 +363,7 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = None
                 continue
             face_id = mapping['face_ids'][idx]
             photo_id = mapping['photo_map'][face_id]
-            similarity_score = float(1.0 - (distance * distance / 2.0))
+            similarity_score = float(1.0 - (distance / 2.0))
             if photo_id not in photo_best_similarity or similarity_score > photo_best_similarity[photo_id]:
                 photo_best_similarity[photo_id] = similarity_score
         
