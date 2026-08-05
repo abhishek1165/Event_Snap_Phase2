@@ -3,9 +3,9 @@ import { Eyebrow, T, MONO, R } from "./shared";
 
 const FAQS = [
   { q: "Does the AI compare me against faces from other events?",  a: "No. Matching is scoped to a single event index. Your selfie is only ever compared against photos uploaded to the gallery whose code you entered." },
-  { q: "What happens to my selfie after matching?",               a: "It is converted into a face embedding — a set of numbers used purely for comparison. The image itself is not kept in storage after the match completes." },
+  { q: "What happens to my selfie after matching?",               a: "It is converted into a face embedding, a set of numbers used purely for comparison. The image itself is not kept in storage after the match completes." },
   { q: "Can I browse a gallery without an event code?",           a: "No. The event code is what scopes a search to one gallery. Without it, there is nothing to search against." },
-  { q: "What if it misses some of my photos?",                    a: "Organizers can rebuild the face index at any time — no re-uploading required — which usually resolves missed photos." },
+  { q: "What if it misses some of my photos?",                    a: "Organizers can rebuild the face index at any time, with no re-uploading required. That usually resolves missed photos." },
   { q: "Do organizers need to know how to code?",                 a: "No. Creating an event, uploading photos, and sharing the code is the entire setup." },
 ];
 

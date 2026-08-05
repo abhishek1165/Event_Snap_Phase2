@@ -1,69 +1,66 @@
-﻿// Shared design tokens & tiny atoms used across all landing sections
+// ════════════════════════════════════════════════════════════════════
+// Event Snap — shared landing tokens & atoms
+// Re-exports the canonical design/tokens so every landing section speaks
+// one language. API kept stable (T, R, MONO, DISPLAY, LogoMark, Eyebrow,
+// Btn, Divider) so existing imports keep working.
+// ════════════════════════════════════════════════════════════════════
 import React, { useState } from "react";
+import { T as TOKENS, R, DISPLAY, MONO, SHADOW } from "@/design/tokens";
 
-export const T = {
-  ink:    "#08090d",
-  paper:  "#0e1016",
-  paper2: "#141722",
-  frame:  "#262b38",
-  frameSoft: "rgba(255,255,255,.08)",
-  text:   "#f1efe9",
-  dim:    "#9a9dae",
-  faint:  "#5c5f70",
-  signal: "#6d5ef5",
-  signal2:"#8b7bff",
-  conf:   "#34d399",
-  confSoft:"rgba(52,211,153,.14)",
-};
+export const T = TOKENS;
+export { R, DISPLAY, MONO };
 
-export const DISPLAY = "'Instrument Sans',system-ui,sans-serif";
-export const MONO    = "'IBM Plex Mono',monospace";
+// One brand mark for the whole site (corner-bracket aperture).
+// Landing sections import { LogoMark } and render <LogoMark /> expecting
+// the bare aperture, so map LogoMark → ApertureMark.
+export { ApertureMark as LogoMark } from "@/components/Logo";
+export { default as Logo } from "@/components/Logo";
 
-export const R = { fontFamily: DISPLAY, fontWeight: 600, letterSpacing: "-.02em" };
-
-export function LogoMark({ size = 30 }) {
-  return (
-    <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
-      {[
-        { top: 0,    left:  0, borderRight: "none", borderBottom: "none" },
-        { top: 0,    right: 0, borderLeft:  "none", borderBottom: "none" },
-        { bottom: 0, left:  0, borderRight: "none", borderTop:    "none" },
-        { bottom: 0, right: 0, borderLeft:  "none", borderTop:    "none" },
-      ].map((s, i) => (
-        <span key={i} style={{ position: "absolute", width: 11, height: 11, border: `2px solid ${T.signal2}`, ...s }} />
-      ))}
-      <span style={{ position: "absolute", inset: size > 24 ? 9 : 7, borderRadius: "50%", background: T.conf }} />
-    </div>
-  );
-}
-
-export function Eyebrow({ children, style }) {
-  return (
-    <span style={{ fontFamily: MONO, fontSize: ".72rem", letterSpacing: ".14em", textTransform: "uppercase", color: T.signal2, display: "inline-flex", alignItems: "center", gap: 8, ...style }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.conf, boxShadow: `0 0 0 3px ${T.confSoft}`, flexShrink: 0 }} />
-      {children}
-    </span>
-  );
-}
-
-export function Btn({ solid, children, onClick, style }) {
+/**
+ * Btn — landing CTA.
+ * Refined per impeccable/design-taste skills: tinted shadow (not neon
+ * glow), solid brand fill (gradient reserved for ONE hero moment),
+ * tactile active scale, spring-free crisp easing.
+ */
+export function Btn({ solid, gradient, children, onClick, style, type = "button", "aria-label": ariaLabel, disabled }) {
   const [hov, setHov] = useState(false);
+  const active = !disabled;
   return (
     <button
+      type={type}
       onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 8,
-        fontWeight: 600, fontSize: ".95rem",
-        padding: "13px 22px", borderRadius: 11,
-        border: solid ? "none" : `1px solid ${hov ? T.signal2 : T.frame}`,
-        background: solid ? "linear-gradient(135deg,#6d5ef5,#8b7bff)" : "transparent",
-        color: T.text, cursor: "pointer",
-        boxShadow: solid ? (hov ? "0 12px 30px -6px rgba(109,94,245,.75)" : "0 8px 24px -8px rgba(109,94,245,.6)") : "none",
-        transition: "transform .25s ease, box-shadow .25s ease, border-color .25s ease",
-        transform: hov ? "translateY(-2px)" : "none",
-        fontFamily: "inherit", whiteSpace: "nowrap",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        fontWeight: 600,
+        fontSize: ".95rem",
+        padding: "13px 22px",
+        borderRadius: 11,
+        border: solid || gradient ? "none" : `1px solid ${hov ? T.signal2 : T.frame}`,
+        background: solid
+          ? T.signal                    // solid brand violet (restrained)
+          : gradient
+          ? "linear-gradient(135deg,#6d5ef5,#8b7bff)" // hero-only gradient
+          : "transparent",
+        color: T.text,
+        cursor: active ? "pointer" : "default",
+        // tinted edge shadow, NOT neon glow (slop tell)
+        boxShadow: solid || gradient
+          ? hov
+            ? SHADOW.brand
+            : "0 1px 0 0 rgba(255,255,255,.16) inset, 0 6px 18px -10px rgba(109,94,245,.45)"
+          : "none",
+        transition: "transform .2s cubic-bezier(.16,1,.3,1), box-shadow .25s ease, border-color .25s ease",
+        transform: active ? (hov ? "translateY(-2px)" : "none") : "none",
+        fontFamily: "inherit",
+        whiteSpace: "nowrap",
+        opacity: active ? 1 : 0.5,
         ...style,
       }}
     >
@@ -72,6 +69,32 @@ export function Btn({ solid, children, onClick, style }) {
   );
 }
 
+/**
+ * Eyebrow — mono uppercase label. Use SPARINGLY (design-taste §4.7:
+ * max 1 per 3 sections). No decorative dot prefix by default.
+ */
+export function Eyebrow({ children, style }) {
+  return (
+    <span
+      style={{
+        fontFamily: MONO,
+        fontSize: ".72rem",
+        letterSpacing: ".16em",
+        textTransform: "uppercase",
+        color: T.signal2,
+        display: "inline-block",
+        ...style,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Divider() {
-  return <div className="lw"><div style={{ height: 1, background: T.frameSoft }} /></div>;
+  return (
+    <div className="lw">
+      <div style={{ height: 1, background: T.frameSoft }} />
+    </div>
+  );
 }

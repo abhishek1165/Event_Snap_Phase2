@@ -2,25 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import api from "@/utils/api";
-
-/* ── Design tokens ── */
-const T = {
-  ink:      "#08090d",
-  paper:    "#0e1016",
-  paper2:   "#141722",
-  frame:    "#262b38",
-  frameSoft:"rgba(255,255,255,.08)",
-  text:     "#f1efe9",
-  dim:      "#9a9dae",
-  faint:    "#5c5f70",
-  signal:   "#6d5ef5",
-  signal2:  "#8b7bff",
-  conf:     "#34d399",
-  confSoft: "rgba(52,211,153,.14)",
-};
-const MONO    = "'IBM Plex Mono',monospace";
-const DISPLAY = "'Instrument Sans',system-ui,sans-serif";
-const R       = { fontFamily: DISPLAY, fontWeight: 600, letterSpacing: "-.02em" };
+import { T, MONO, DISPLAY, R } from "@/design/tokens";
+import { ApertureMark as LogoMark } from "@/components/Logo";
+import { Eyebrow, Btn } from "@/components/landing/shared";
 
 /* ── Responsive width hook ── */
 function useW() {
@@ -31,21 +15,6 @@ function useW() {
     return () => window.removeEventListener("resize", fn);
   }, []);
   return w;
-}
-
-/* ── LogoMark ── */
-function LogoMark() {
-  return (
-    <div style={{ width:26, height:26, position:"relative", flexShrink:0 }}>
-      {[
-        { top:0,    left:0,  borderRight:"none", borderBottom:"none" },
-        { top:0,    right:0, borderLeft:"none",  borderBottom:"none" },
-        { bottom:0, left:0,  borderRight:"none", borderTop:"none"    },
-        { bottom:0, right:0, borderLeft:"none",  borderTop:"none"    },
-      ].map((s,i) => <span key={i} style={{ position:"absolute", width:10, height:10, border:`2px solid ${T.signal2}`, ...s }} />)}
-      <span style={{ position:"absolute", inset:8, borderRadius:"50%", background:T.conf }} />
-    </div>
-  );
 }
 
 /* ── Stepper ── */
@@ -80,39 +49,6 @@ function Stepper({ step }) {
         );
       })}
     </div>
-  );
-}
-
-/* ── Solid CTA button ── */
-function SolidBtn({ onClick, disabled, children, style, "aria-label": ariaLabel }) {
-  const [hov, setHov] = useState(false);
-  const active = !disabled;
-  return (
-    <button onClick={onClick} disabled={disabled} aria-label={ariaLabel}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{
-        display:"inline-flex", alignItems:"center", justifyContent:"center", gap:8,
-        width:"100%", padding:"14px 24px", borderRadius:11, border:"none",
-        background: active ? "linear-gradient(135deg,#6d5ef5,#8b7bff)" : T.frame,
-        color: active ? "#fff" : T.faint,
-        fontWeight:600, fontSize:".95rem", cursor: active ? "pointer" : "default",
-        boxShadow: active ? (hov ? "0 12px 30px -6px rgba(109,94,245,.75)" : "0 8px 24px -8px rgba(109,94,245,.6)") : "none",
-        transform: active && hov ? "translateY(-2px)" : "none",
-        transition:"all .25s ease", fontFamily:"inherit",
-        ...style,
-      }}>
-      {children}
-    </button>
-  );
-}
-
-/* ── Eyebrow label ── */
-function Eyebrow({ children }) {
-  return (
-    <span style={{ fontFamily:MONO, fontSize:".72rem", letterSpacing:".14em", textTransform:"uppercase", color:T.signal2, display:"inline-flex", alignItems:"center", gap:8, marginBottom:16 }}>
-      <span style={{ width:6, height:6, borderRadius:"50%", background:T.conf, boxShadow:`0 0 0 3px ${T.confSoft}`, flexShrink:0 }} />
-      {children}
-    </span>
   );
 }
 
@@ -172,10 +108,10 @@ function StepCode({ onNext }) {
 
   return (
     <div style={{ width:"100%", maxWidth:480, textAlign:"center", padding: w < 480 ? "0 4px" : 0 }}>
-      <Eyebrow>Find your photos</Eyebrow>
+      <Eyebrow style={{ marginBottom: 16 }}>Find your photos</Eyebrow>
       <h1 style={{ ...R, fontSize:"clamp(1.7rem,5vw,2.4rem)", marginBottom:10 }}>What's the event code?</h1>
       <p style={{ color:T.dim, fontSize: w < 480 ? ".9rem" : ".98rem", lineHeight:1.6 }}>
-        Ask your organizer for the eight-character code — it's the only thing standing between you and your photos.
+        Ask your organizer for the eight-character code. It's the only thing standing between you and your photos.
       </p>
 
       {/* Code boxes — grouped with an accessible label */}
@@ -203,11 +139,11 @@ function StepCode({ onNext }) {
         ))}
       </div>
 
-      <SolidBtn onClick={handleFind} disabled={!full || loading} aria-label={loading ? "Checking event code, please wait" : "Find my photos"}>
+      <Btn solid onClick={handleFind} disabled={!full || loading} aria-label={loading ? "Checking event code, please wait" : "Find my photos"} style={{ width:"100%" }}>
         {loading ? (
           <><span role="status" aria-label="Loading" style={{ width:16, height:16, border:"2px solid rgba(255,255,255,.3)", borderTopColor:"#fff", borderRadius:"50%", display:"inline-block", animation:"lspin 0.7s linear infinite" }} /> Checking code…</>
         ) : "Find my photos →"}
-      </SolidBtn>
+      </Btn>
 
       <span style={{ display:"block", marginTop:20, fontSize:".85rem", color:T.faint }}>
         Are you the organizer? <Link to="/auth" style={{ color:T.signal2 }}>Go to dashboard</Link>
@@ -258,7 +194,7 @@ function StepVerify({ event, onNext }) {
 
   return (
     <div style={{ width:"100%", maxWidth: w < 600 ? "100%" : 460, textAlign:"center", padding: w < 480 ? "0 4px" : 0 }}>
-      <Eyebrow>{event?.title || "Event"} · verify it's you</Eyebrow>
+      <Eyebrow style={{ marginBottom: 10 }}>{event?.title || "Event"} · verify it's you</Eyebrow>
       <h1 style={{ ...R, fontSize:"clamp(1.7rem,5vw,2.4rem)", marginBottom:10 }}>Show us your face.</h1>
       <p style={{ color:T.dim, fontSize: w < 480 ? ".9rem" : ".98rem", marginBottom:24, lineHeight:1.6 }}>
         One photo, nothing else. We turn it into a match key, never a photo we keep.
@@ -353,7 +289,7 @@ function StepVerify({ event, onNext }) {
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileChange} />
           <div style={{ marginTop:18 }}>
-            <SolidBtn onClick={handleUploadContinue} disabled={!fileReady} aria-label={fileReady ? `Continue with ${fileName}` : "Continue — upload a photo first"}>Continue →</SolidBtn>
+            <Btn solid onClick={handleUploadContinue} disabled={!fileReady} aria-label={fileReady ? `Continue with ${fileName}` : "Continue — upload a photo first"} style={{ width:"100%" }}>Continue →</Btn>
           </div>
         </div>
       )}
@@ -442,7 +378,6 @@ export default function AttendeeEntry() {
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", position:"relative", background:T.ink, color:T.text, fontFamily:"'Inter',system-ui,sans-serif", lineHeight:1.6, WebkitFontSmoothing:"antialiased", overflowX:"hidden" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Instrument+Sans:wght@500;600;700&display=swap');
         @keyframes lspin     { to { transform:rotate(360deg); } }
         @keyframes lradar    { to { transform:rotate(360deg); } }
         @keyframes lscanline { 0%,100%{ top:35% } 50%{ top:65% } }
@@ -490,7 +425,7 @@ export default function AttendeeEntry() {
         {w >= 360 && (
           <div style={{ position:"absolute", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:8, ...R, fontSize: w < 480 ? ".9rem" : "1rem", pointerEvents:"none" }}>
             <LogoMark />
-            {w >= 480 && "FaceShot"}
+            {w >= 480 && "Event Snap"}
           </div>
         )}
 

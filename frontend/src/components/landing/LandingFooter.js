@@ -14,7 +14,7 @@ export default function LandingFooter() {
         <div className="lft">
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, ...R, fontSize: "1.05rem" }}>
-              <LogoMark />FaceShot
+              <LogoMark size={24} />Event&nbsp;Snap
             </div>
             <p style={{ color: T.faint, fontSize: ".88rem", marginTop: 14, maxWidth: 260 }}>
               Face matching for event photography. One code in, every photo of you out.
@@ -34,7 +34,7 @@ export default function LandingFooter() {
           ))}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", color: T.faint, fontSize: ".82rem", fontFamily: MONO, flexWrap: "wrap", gap: 10 }}>
-          <span>© 2026 FaceShot</span>
+          <span>© 2026 Event Snap</span>
           <span>Built for the day of the event</span>
         </div>
       </div>

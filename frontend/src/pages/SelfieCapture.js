@@ -1,9 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Webcam from 'react-webcam';
-import { Camera, Check, CircleCheck, Loader2, ArrowLeft, AlertCircle, Monitor, Smartphone, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Check, AlertCircle, Upload, Lightbulb, Monitor, Smartphone } from 'lucide-react';
+import { AppShell, AppHeader } from '@/components/AppShell';
+import { Button, Eyebrow, Card, Badge } from '@/components/brand/atoms';
+import { T, MONO, DISPLAY, SHADOW, DUR, EASE } from '@/design/tokens';
+
 import { toast } from 'sonner';
 import api from '@/utils/api';
 
@@ -17,42 +20,39 @@ const SelfieCapture = () => {
   const [searching, setSearching] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [uploadMode, setUploadMode] = useState(false); // Toggle between camera and upload
+  const [uploadMode, setUploadMode] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const fileInputRef = useRef(null);
   const DeviceIcon = isMobile ? Smartphone : Monitor;
 
-  // Detect if user is on mobile device
   useEffect(() => {
     const mobileCheck = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     setIsMobile(mobileCheck);
   }, []);
 
-  // Camera constraints - force use of current device camera
   const videoConstraints = {
-    facingMode: { exact: "user" }, // Always use front/user-facing camera regardless of device
+    facingMode: { exact: 'user' },
     width: { ideal: 1280 },
     height: { ideal: 720 },
-    frameRate: { ideal: 30 }
+    frameRate: { ideal: 30 },
   };
 
   const handleCameraError = (error) => {
     console.error('Camera error:', error);
     setCameraError(true);
-    toast.error('Failed to access camera. Please ensure you\'re using this device\'s camera.');
+    toast.error('Failed to access camera. Please ensure camera permissions are granted.');
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     if (!file.type.match('image.*')) {
       toast.error('Please select an image file');
       return;
     }
-
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setImgSrc(event.target.result);
+    reader.onload = (ev) => {
+      setImgSrc(ev.target.result);
       setUploadedFile(file);
       setUploadMode(true);
     };
@@ -66,39 +66,32 @@ const SelfieCapture = () => {
   };
 
   const capture = useCallback(() => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    setImgSrc(imageSrc);
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (imageSrc) setImgSrc(imageSrc);
   }, [webcamRef]);
-
-  const retake = () => {
-    setImgSrc(null);
-  };
 
   const handleSearch = async () => {
     if (!imgSrc) return;
-    
     setSearching(true);
     try {
       let blob;
       if (uploadedFile) {
-        // Use the uploaded file directly
         blob = uploadedFile;
       } else {
-        // Convert captured image to blob
         const response = await fetch(imgSrc);
         blob = await response.blob();
       }
-      
+
       const formData = new FormData();
       formData.append('file', blob, 'selfie.jpg');
       formData.append('event_id', eventId);
-      
+
       const searchResponse = await api.post('/search/selfie', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
+
       const results = searchResponse.data;
-      
+
       if (results.length === 0) {
         toast.error('No photos found. Try a different selfie.');
         setImgSrc(null);
@@ -108,7 +101,6 @@ const SelfieCapture = () => {
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Search failed. Please try again.';
-      // Handle the specific "no matching photos" case
       if (error.response?.status === 404 && errorMessage.includes('not present')) {
         toast.error('No matching photos found. You are not present in this event.');
       } else {
@@ -120,235 +112,285 @@ const SelfieCapture = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Button
-            data-testid="back-button"
-            variant="ghost"
-            onClick={() => navigate('/attendjoin')}
-            className="gap-2 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </Button>
-          <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            Take Your Selfie
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            {event?.title || 'Event'} - look at the camera and smile.
-          </p>
-        </motion.div>
+  /* ── Framer Motion page entrance ── */
+  const pageVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: DUR.base, ease: EASE.out } },
+  };
 
-        {/* Camera/Preview */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xl"
-        >
-          {/* Mode Toggle */}
-          <div className="flex border-b border-slate-200 dark:border-slate-700">
-            <button
-              className={`flex-1 py-3 text-center font-medium ${
-                !uploadMode 
-                  ? 'text-indigo-600 border-b-2 border-indigo-600' 
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-              onClick={() => setUploadMode(false)}
+  const cardVariants = {
+    hidden: { opacity: 0, y: 16 },
+    visible: { opacity: 1, y: 0, transition: { duration: DUR.fast, ease: EASE.out } },
+  };
+
+  return (
+    <AppShell
+      header={
+        <AppHeader
+          left={
+            <Button
+              data-testid="back-button"
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/attendjoin')}
+              className="gap-2"
             >
-              Take Selfie
-            </button>
-            <button
-              className={`flex-1 py-3 text-center font-medium ${
-                uploadMode 
-                  ? 'text-indigo-600 border-b-2 border-indigo-600' 
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-              onClick={() => setUploadMode(true)}
-            >
-              Upload Photo
-            </button>
-          </div>
-          
-          <div className="relative aspect-[4/3] bg-slate-900">
-            {!imgSrc ? (
-              <>
-                {uploadMode ? (
-                  // Upload mode UI
-                  <div className="w-full h-full flex items-center justify-center p-4">
-                    <div className="w-full h-full flex flex-col items-center justify-center">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="photo-upload"
-                      />
-                      <label 
-                        htmlFor="photo-upload"
-                        className="cursor-pointer flex flex-col items-center justify-center w-full h-full border-2 border-dashed border-slate-400 rounded-xl hover:border-indigo-500 transition-colors p-8 text-center"
-                      >
-                        <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                        <p className="font-semibold mb-2 text-slate-700 dark:text-slate-300">Click to upload a photo</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Supports JPG, PNG, WEBP</p>
-                      </label>
-                    </div>
-                  </div>
-                ) : (
-                  // Camera mode UI
-                  <>
-                    {cameraError ? (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
-                        <div className="text-center p-6">
-                          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                          <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Camera Access Denied</h3>
-                          <p className="text-slate-600 dark:text-slate-400 mb-4">
-                            Please allow camera access for this device to capture your selfie.
+              ← Back
+            </Button>
+          }
+          right={
+            <Badge tone="iris">{isMobile ? 'Mobile' : 'Desktop'} camera</Badge>
+          }
+        />
+      }
+    >
+      <motion.div
+        variants={pageVariants}
+        initial="hidden"
+        animate="visible"
+        className="mx-auto w-full max-w-2xl px-5 py-8 sm:py-12"
+      >
+        {/* ── Page header ── */}
+        <div className="mb-8 text-center">
+          <Eyebrow className="mb-3">Selfie capture</Eyebrow>
+          <h1
+            className="text-2xl font-bold tracking-tight sm:text-3xl"
+            style={{ fontFamily: DISPLAY }}
+          >
+            {event?.title || 'Find your photos'}
+          </h1>
+          <p className="mt-2 text-sm text-text-dim">
+            One clear face photo is all we need. We turn it into a match key, never a photo we keep.
+          </p>
+        </div>
+
+        {/* ── Capture card ── */}
+        <motion.div variants={cardVariants}>
+          <Card className="overflow-hidden">
+            {/* ── Mode tabs ── */}
+            <div className="flex border-b border-frame-soft px-4 pt-3">
+              {['selfie', 'upload'].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    setUploadMode(mode === 'upload');
+                    if (mode === 'upload' && !imgSrc) {
+                      setImgSrc(null);
+                      setUploadedFile(null);
+                    }
+                  }}
+                  className={`relative flex-1 rounded-t-lg px-4 pb-3 text-center text-sm font-medium transition-colors ${
+                    uploadMode === (mode === 'upload')
+                      ? 'text-text'
+                      : 'text-text-dim hover:text-text'
+                  }`}
+                >
+                  {mode === 'selfie' ? 'Take Selfie' : 'Upload Photo'}
+                  {uploadMode === (mode === 'upload') && (
+                    <motion.div
+                      layoutId="capture-tab-pill"
+                      className="absolute inset-x-4 bottom-0 h-0.5 bg-iris-2 rounded-full"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Viewfinder ── */}
+            <div className="relative aspect-[4/3] bg-ink overflow-hidden">
+              <AnimatePresence mode="wait">
+                {!imgSrc ? (
+                  <motion.div
+                    key={uploadMode ? 'upload' : 'camera'}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0"
+                  >
+                    {uploadMode ? (
+                      /* ── Upload zone ── */
+                      <div className="flex h-full items-center justify-center p-6">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          id="selfie-file-upload"
+                        />
+                        <label
+                          htmlFor="selfie-file-upload"
+                          className="flex h-full w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-frame hover:border-iris-2 transition-colors p-8 text-center"
+                        >
+                          <Upload className="mx-auto mb-3 h-10 w-10 text-text-faint" />
+                          <p className="mb-1 text-sm font-semibold text-text">
+                            Tap to upload a photo
                           </p>
-                          <Button 
-                            onClick={() => {
-                              setCameraError(false);
-                              // Try to re-initialize camera
-                              if (webcamRef.current) {
-                                webcamRef.current.video = null;
-                              }
-                            }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                          >
-                            Try Again
-                          </Button>
+                          <p className="text-xs text-text-dim">
+                            Supports JPG, PNG, WEBP
+                          </p>
+                        </label>
+                      </div>
+                    ) : cameraError ? (
+                      /* ── Camera error ── */
+                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-surface-2 p-6 text-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
+                          <AlertCircle className="h-7 w-7 text-destructive" />
                         </div>
+                        <h3 className="text-sm font-semibold text-text">
+                          Camera Access Denied
+                        </h3>
+                        <p className="text-xs text-text-dim max-w-[260px]">
+                          Please allow camera access in your device settings to capture your selfie.
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setCameraError(false);
+                            if (webcamRef.current) webcamRef.current.video = null;
+                          }}
+                        >
+                          Try Again
+                        </Button>
                       </div>
                     ) : (
-                      <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        className="w-full h-full object-cover"
-                        videoConstraints={videoConstraints}
-                        onUserMediaError={handleCameraError}
-                      />
+                      /* ── Live webcam ── */
+                      <>
+                        <Webcam
+                          audio={false}
+                          ref={webcamRef}
+                          screenshotFormat="image/jpeg"
+                          className="h-full w-full object-cover"
+                          videoConstraints={videoConstraints}
+                          onUserMediaError={handleCameraError}
+                        />
+                        {/* Aperture brackets overlay */}
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <div className="relative" style={{ width: '38%', paddingBottom: '48%' }}>
+                            {[
+                              { top: 0, left: 0, borderRight: 'none', borderBottom: 'none' },
+                              { top: 0, right: 0, borderLeft: 'none', borderBottom: 'none' },
+                              { bottom: 0, left: 0, borderRight: 'none', borderTop: 'none' },
+                              { bottom: 0, right: 0, borderLeft: 'none', borderTop: 'none' },
+                            ].map((s, i) => (
+                              <span
+                                key={i}
+                                className="absolute transition-colors duration-500"
+                                style={{
+                                  width: 22,
+                                  height: 22,
+                                  border: '2.5px solid rgba(139,123,255,.6)',
+                                  ...s,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        {/* Scan line */}
+                        <motion.div
+                          animate={{ top: ['35%', '65%', '35%'] }}
+                          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                          className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-iris-2 to-transparent opacity-70"
+                          style={{ boxShadow: '0 0 12px 2px rgba(109,94,245,.35)' }}
+                        />
+                      </>
                     )}
-                    {/* Scanning overlay animation */}
-                    <motion.div
-                      animate={{
-                        y: ['0%', '100%', '0%']
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: 'linear'
-                      }}
-                      className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"
-                      style={{ top: 0 }}
-                    />
-                  </>
+                  </motion.div>
+                ) : (
+                  /* ── Preview ── */
+                  <motion.img
+                    key="preview"
+                    initial={{ opacity: 0, scale: 1.02 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    src={imgSrc}
+                    alt="Selfie preview"
+                    className="h-full w-full object-cover"
+                  />
                 )}
-              </>
-            ) : (
-              <img src={imgSrc} alt="Selfie preview" className="w-full h-full object-cover" />
-            )}
-          </div>
+              </AnimatePresence>
+            </div>
 
-          {/* Controls */}
-          <div className="p-6 bg-white dark:bg-slate-800">
-            {!imgSrc ? (
-              <div className="text-center">
-                {!uploadMode && (
-                  <Button
-                    data-testid="capture-button"
-                    onClick={capture}
-                    size="lg"
-                    className="rounded-full w-16 h-16 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg p-0"
-                  >
-                    <Camera className="w-8 h-8" />
-                  </Button>
-                )}
-                <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
-                  {!uploadMode ? 'Click the button to capture' : 'Select a photo to upload'}
-                </p>
-              </div>
-            ) : (
-              <div className="flex gap-3">
-                <Button
-                  data-testid="retake-button"
-                  onClick={handleRetake}
-                  variant="outline"
-                  className="flex-1 h-12 rounded-lg"
-                  disabled={searching}
-                >
-                  Retake
-                </Button>
-                <Button
-                  data-testid="search-button"
-                  onClick={handleSearch}
-                  className="flex-1 h-12 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                  disabled={searching}
-                >
-                  {searching ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Search Photos
-                    </>
+            {/* ── Controls ── */}
+            <div className="flex items-center justify-center gap-4 border-t border-frame-soft bg-surface p-5">
+              {!imgSrc ? (
+                <>
+                  {!uploadMode && (
+                    <button
+                      data-testid="capture-button"
+                      onClick={capture}
+                      className="group relative flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-iris-2 bg-transparent transition-all hover:border-iris"
+                      aria-label="Capture selfie"
+                    >
+                      <span className="block h-11 w-11 rounded-full bg-iris-2 transition-all group-hover:bg-iris group-active:scale-95" />
+                    </button>
                   )}
-                </Button>
-              </div>
-            )}
-          </div>
+                  <p className="text-xs text-text-dim">
+                    {!uploadMode ? 'Tap the shutter to capture' : 'Select a photo to continue'}
+                  </p>
+                </>
+              ) : (
+                <div className="flex w-full gap-3">
+                  <Button
+                    data-testid="retake-button"
+                    variant="ghost"
+                    onClick={handleRetake}
+                    disabled={searching}
+                    className="flex-1"
+                  >
+                    Retake
+                  </Button>
+                  <Button
+                    data-testid="search-button"
+                    variant="primary"
+                    onClick={handleSearch}
+                    disabled={searching}
+                    className="flex-1 gap-2"
+                  >
+                    {searching ? (
+                      <>
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Searching…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Search Photos
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Card>
         </motion.div>
 
-        {/* Device Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-800"
-        >
-          <h3 className="font-semibold mb-3 text-blue-900 dark:text-blue-300">
-            <DeviceIcon className="inline-block w-4 h-4 mr-2 align-[-2px]" />
-            {isMobile ? 'Mobile camera ready' : 'Webcam ready'}
-          </h3>
-          <p className="text-sm text-blue-800 dark:text-blue-300">
-            Using {isMobile ? 'your mobile device\'s front camera' : 'this device\'s webcam'} for selfie capture.
-          </p>
+        {/* ── Tips card ── */}
+        <motion.div variants={cardVariants} className="mt-6">
+          <Card className="p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-memory" />
+              <span className="text-sm font-semibold text-text">Tips for best results</span>
+            </div>
+            <ul className="space-y-2">
+              {[
+                'Face the camera directly',
+                'Make sure your face is well-lit',
+                'Remove sunglasses or masks if possible',
+                'Keep a neutral expression similar to event photos',
+              ].map((tip) => (
+                <li key={tip} className="flex items-start gap-2 text-xs text-text-dim">
+                  <span className="mt-1 block h-1.5 w-1.5 flex-shrink-0 rounded-full bg-iris-2" />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </Card>
         </motion.div>
-
-        {/* Tips */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-4 p-6 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-200 dark:border-indigo-800"
-        >
-          <h3 className="font-semibold mb-3 text-indigo-900 dark:text-indigo-300">Tips for best results:</h3>
-          <ul className="space-y-2 text-sm text-indigo-800 dark:text-indigo-300">
-            {[
-              'Face the camera directly',
-              'Make sure your face is well-lit',
-              'Remove sunglasses or masks if possible',
-              'Keep a neutral expression similar to event photos',
-            ].map((tip) => (
-              <li key={tip} className="flex items-start gap-2">
-                <CircleCheck className="w-4 h-4 mt-0.5 flex-none text-indigo-500 dark:text-indigo-300" />
-                <span>{tip}</span>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-      </div>
-    </div>
+      </motion.div>
+    </AppShell>
   );
 };
 
