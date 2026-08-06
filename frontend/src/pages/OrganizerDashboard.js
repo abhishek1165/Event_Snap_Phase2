@@ -1,26 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, LogOut, Calendar, Image as ImageIcon, LayoutGrid, Zap, Hash, ArrowRight } from "lucide-react";
+import { Plus, LogOut, Calendar, Image as ImageIcon, LayoutGrid, Zap, Hash, ArrowRight, QrCode, Copy, Tv, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import api from "@/utils/api";
 import { cn } from "@/lib/utils";
 import { AppShell, AppHeader } from "@/components/AppShell";
 import { Button, Card, Input, Label } from "@/components/brand/atoms";
-import { EASE, STAGGER } from "@/design/tokens";
+import { STAGGER } from "@/design/tokens";
+import QrCardGeneratorModal from "@/components/organizer/QrCardGeneratorModal";
 
-/* ── Stagger (Framer Motion, app-UI convention) ── */
+/* ── Stagger (Framer Motion) ── */
 const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: STAGGER } },
 };
 const cardVariants = {
   hidden: { opacity: 0, scale: 0.96, y: 16 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 320, damping: 30 } },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 30 } },
 };
 
-/* ── Status badge config (semantic colors, dot = real state) ── */
+/* ── Status badge config ── */
 const STATUS_CONFIG = {
   completed: { label: "Ready", dot: "bg-match", text: "text-match", bg: "bg-match/10" },
   processing: { label: "Processing", dot: "bg-memory", text: "text-memory", bg: "bg-memory/10" },
@@ -59,6 +60,10 @@ const OrganizerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", description: "", date: "" });
+  
+  // QR Card Modal State
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [selectedQrEvent, setSelectedQrEvent] = useState(null);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user") || "{}");
@@ -66,7 +71,6 @@ const OrganizerDashboard = () => {
     loadEvents();
   }, []);
 
-  // ── API preserved exactly (POST /events, GET /events) ──
   const loadEvents = async () => {
     try {
       const response = await api.get("/events");
@@ -82,13 +86,31 @@ const OrganizerDashboard = () => {
     e.preventDefault();
     try {
       const response = await api.post("/events", newEvent);
-      toast.success("Event created.");
+      toast.success("Event created successfully!");
       setEvents([response.data, ...events]);
       setCreateDialogOpen(false);
       setNewEvent({ title: "", description: "", date: "" });
     } catch (error) {
       toast.error("Failed to create event.");
     }
+  };
+
+  const handleCopyJoinLink = (e, eventCode) => {
+    e.stopPropagation();
+    const joinUrl = `${window.location.origin}/attendjoin?code=${eventCode}`;
+    navigator.clipboard.writeText(joinUrl);
+    toast.success("Attendee Join Link copied to clipboard!");
+  };
+
+  const handleOpenQrModal = (e, eventObj) => {
+    e.stopPropagation();
+    setSelectedQrEvent(eventObj);
+    setQrModalOpen(true);
+  };
+
+  const handleOpenSlideshow = (e, eventId) => {
+    e.stopPropagation();
+    navigate(`/events/${eventId}/slideshow`);
   };
 
   const handleLogout = () => {
@@ -138,12 +160,12 @@ const OrganizerDashboard = () => {
       }
     >
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:px-8">
-        {/* header */}
+        {/* Header */}
         <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-text-faint">Dashboard</p>
             <h1 className="text-4xl font-semibold tracking-tight text-text">My events</h1>
-            <p className="mt-1.5 text-text-dim">Manage events, photos, and attendee access codes.</p>
+            <p className="mt-1.5 text-text-dim">Manage events, download QR cards, and track guest photos.</p>
           </div>
 
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -184,14 +206,14 @@ const OrganizerDashboard = () => {
           </Dialog>
         </div>
 
-        {/* stats */}
+        {/* Stats */}
         <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <StatCard icon={LayoutGrid} label="Total events" value={events.length} accent="bg-iris" />
           <StatCard icon={Zap} label="Active" value={activeEvents} accent="bg-match" />
           <StatCard icon={ImageIcon} label="Total photos" value={totalPhotos} accent="bg-memory" />
         </div>
 
-        {/* grid */}
+        {/* Grid */}
         {events.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -231,6 +253,36 @@ const OrganizerDashboard = () => {
                   <div className="mb-4" />
                 )}
 
+                {/* Quick Action Toolbar */}
+                <div className="mb-4 flex items-center gap-1.5 rounded-xl border border-frame-soft bg-surface-2/60 p-1.5">
+                  <button
+                    title="Print / Download QR Table Card"
+                    onClick={(e) => handleOpenQrModal(e, event)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold text-text-dim hover:bg-surface-3 hover:text-text transition-colors"
+                  >
+                    <QrCode className="h-3.5 w-3.5 text-iris-2" />
+                    <span>QR Cards</span>
+                  </button>
+
+                  <button
+                    title="Copy Join Link"
+                    onClick={(e) => handleCopyJoinLink(e, event.event_code)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold text-text-dim hover:bg-surface-3 hover:text-text transition-colors"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Link</span>
+                  </button>
+
+                  <button
+                    title="Launch Live Slideshow"
+                    onClick={(e) => handleOpenSlideshow(e, event.id)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold text-text-dim hover:bg-surface-3 hover:text-text transition-colors"
+                  >
+                    <Tv className="h-3.5 w-3.5 text-match" />
+                    <span>Slideshow</span>
+                  </button>
+                </div>
+
                 <div className="mt-auto flex items-center justify-between border-t border-frame-soft pt-4">
                   <div className="flex items-center gap-1.5">
                     <Hash className="h-3.5 w-3.5 text-text-faint" />
@@ -242,11 +294,18 @@ const OrganizerDashboard = () => {
                   </div>
                 </div>
 
-                <ArrowRight className="absolute right-5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-faint opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+                <ArrowRight className="absolute right-5 top-6 h-4 w-4 text-text-faint opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
               </motion.div>
             ))}
           </motion.div>
         )}
+
+        {/* QR Card Generator Modal */}
+        <QrCardGeneratorModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          event={selectedQrEvent}
+        />
       </div>
     </AppShell>
   );

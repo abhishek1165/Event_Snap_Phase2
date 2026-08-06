@@ -127,21 +127,21 @@ const SelfieCapture = () => {
     <AppShell
       header={
         <AppHeader
-          left={
-            <Button
-              data-testid="back-button"
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/attendjoin')}
-              className="gap-2"
-            >
-              ← Back
-            </Button>
-          }
+          showLogo={false}
           right={
             <Badge tone="iris">{isMobile ? 'Mobile' : 'Desktop'} camera</Badge>
           }
-        />
+        >
+          <Button
+            data-testid="back-button"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/attendjoin')}
+            className="gap-2"
+          >
+            ← Back
+          </Button>
+        </AppHeader>
       }
     >
       <motion.div

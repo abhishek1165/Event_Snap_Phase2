@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Download, Check, CheckCircle, Search, ImageIcon } from 'lucide-react';
 import { AppShell, AppHeader } from '@/components/AppShell';
 import { Button, Badge, Eyebrow } from '@/components/brand/atoms';
+import { getBackendUrl } from '@/utils/api';
 import { T, DISPLAY, SHADOW, DUR, EASE } from '@/design/tokens';
 import { toast } from 'sonner';
 
@@ -18,7 +19,7 @@ export default function PhotoGallery() {
 
   const [selectedPhotos, setSelectedPhotos] = useState(new Set());
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
   const HIGH_CONFIDENCE_THRESHOLD = 0.7;
 
   const resultsById = useMemo(
@@ -126,18 +127,7 @@ export default function PhotoGallery() {
     <AppShell
       header={
         <AppHeader
-          left={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/attendjoin')}
-              className="gap-2"
-              aria-label="Start a new photo search"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">New Search</span>
-            </Button>
-          }
+          showLogo={false}
           right={
             results.length > 0 && (
               <Button
@@ -155,7 +145,18 @@ export default function PhotoGallery() {
               </Button>
             )
           }
-        />
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/attendjoin')}
+            className="gap-2"
+            aria-label="Start a new photo search"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">New Search</span>
+          </Button>
+        </AppHeader>
       }
     >
       <motion.div

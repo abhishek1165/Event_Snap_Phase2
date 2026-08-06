@@ -115,7 +115,7 @@ function StepCode({ onNext }) {
       </p>
 
       {/* Code boxes — grouped with an accessible label */}
-      <div role="group" aria-label="Event code — enter each character" style={{ display:"flex", gap:boxGap, justifyContent:"center", margin:"28px 0 24px", flexWrap:"nowrap" }}>
+      <div role="group" aria-label="Event code. Enter each character" style={{ display:"flex", gap:boxGap, justifyContent:"center", margin:"28px 0 24px", flexWrap:"nowrap" }}>
         {chars.map((c, i) => (
           <input key={i}
             ref={el => refs.current[i] = el}
@@ -289,7 +289,7 @@ function StepVerify({ event, onNext }) {
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileChange} />
           <div style={{ marginTop:18 }}>
-            <Btn solid onClick={handleUploadContinue} disabled={!fileReady} aria-label={fileReady ? `Continue with ${fileName}` : "Continue — upload a photo first"} style={{ width:"100%" }}>Continue →</Btn>
+            <Btn solid onClick={handleUploadContinue} disabled={!fileReady} aria-label={fileReady ? `Continue with ${fileName}` : "Continue. Upload a photo first"} style={{ width:"100%" }}>Continue →</Btn>
           </div>
         </div>
       )}

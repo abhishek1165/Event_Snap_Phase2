@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Upload, CheckCircle, Loader2, Image as ImageIcon, Trash2, AlertTriangle, RefreshCw, QrCode, Tv, Copy } from "lucide-react";
 import { Button as ShadButton } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import api from "@/utils/api";
+import api, { getBackendUrl } from "@/utils/api";
 import { AppShell, AppHeader } from "@/components/AppShell";
 import { Button, Card } from "@/components/brand/atoms";
+import QrCardGeneratorModal from "@/components/organizer/QrCardGeneratorModal";
 import { cn } from "@/lib/utils";
 
 const EventDetails = () => {
@@ -24,9 +25,16 @@ const EventDetails = () => {
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
 
-  // preserved exactly — used to build thumbnail/photo URLs
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+
+  const handleCopyLink = () => {
+    if (!event) return;
+    const joinUrl = `${window.location.origin}/attendjoin?code=${event.event_code}`;
+    navigator.clipboard.writeText(joinUrl);
+    toast.success("Attendee Join Link copied to clipboard!");
+  };
 
   // ── API logic preserved verbatim ──
   const loadStatus = useCallback(async () => {
@@ -167,6 +175,36 @@ const EventDetails = () => {
               <div>
                 <h1 className="mb-2 text-3xl font-semibold tracking-tight text-text">{event?.title}</h1>
                 {event?.description && <p className="text-text-dim">{event.description}</p>}
+                
+                {/* Organizer Action Toolbar */}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setQrModalOpen(true)}
+                    className="gap-2"
+                  >
+                    <QrCode className="h-4 w-4" /> Get QR Table Cards
+                  </Button>
+
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    className="gap-2"
+                  >
+                    <Copy className="h-4 w-4" /> Copy Join Link
+                  </Button>
+
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => navigate(`/events/${eventId}/slideshow`)}
+                    className="gap-2"
+                  >
+                    <Tv className="h-4 w-4 text-match" /> Launch Live Slideshow
+                  </Button>
+                </div>
               </div>
               <div className="text-right">
                 <div className="mb-1 text-sm text-text-faint">Access code</div>
@@ -361,6 +399,13 @@ const EventDetails = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* QR Card Generator Modal */}
+        <QrCardGeneratorModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          event={event}
+        />
       </main>
     </AppShell>
   );

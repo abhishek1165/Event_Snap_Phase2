@@ -8,6 +8,7 @@ import EventDetails from './pages/EventDetails';
 import AttendeeEntry from './pages/AttendeeEntry';
 import SelfieCapture from './pages/SelfieCapture';
 import PhotoGallery from './pages/PhotoGallery';
+import LiveSlideshow from './pages/LiveSlideshow';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -35,6 +36,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <EventDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/:eventId/slideshow"
+            element={
+              <ProtectedRoute>
+                <LiveSlideshow />
               </ProtectedRoute>
             }
           />
