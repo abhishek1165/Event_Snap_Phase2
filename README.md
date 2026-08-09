@@ -1,201 +1,212 @@
-# Event Snap
+# Event Snap 📸
 
-A full-stack web application for event photo management with advanced face recognition and AI-powered image organization capabilities.
+> **AI-powered event photo sharing** — Attendees scan a QR code, take one selfie, and instantly find every photo they appear in across thousands of event shots.
 
-## 🌟 Features
+---
 
-- **Face Recognition**: Automatically detect and identify faces in photos using DeepFace
-- **Intelligent Organization**: AI-powered categorization and organization of event photos
-- **Image Management**: Upload, store, and manage photos with thumbnail generation
-- **User Authentication**: Secure JWT-based authentication system
-- **Real-time Processing**: FAISS-powered vector search for similar faces
-- **Responsive UI**: Modern React frontend with Radix UI components
-- **REST API**: Comprehensive FastAPI backend with async support
+## ✨ Features
+
+- **⚡ Instant Face Matching** — Take a selfie and FAISS vector search finds every photo of you in seconds
+- **🎯 Organizer Dashboard** — Create events, upload photos, track processing stats in real time
+- **🖼️ QR Table Card Generator** — Print beautiful QR cards for wedding/event tables (4 templates)
+- **📺 Live Slideshow Mode** — Full-screen auto-rotating presentation for venue TVs and projectors
+- **🔐 JWT Authentication** — Secure login/register for organizers and attendees
+- **☁️ MongoDB GridFS Storage** — All photos, thumbnails, and FAISS indices stored in MongoDB (no local disk required)
+- **🎨 Modern Dark Cinema UI** — Premium design with Framer Motion animations and GSAP effects
+
+---
+
+## 📸 Screenshots
+
+### Landing Page
+![Landing Page](frontend/public/Screenshot%202026-08-09%20123631.png)
+
+### Organizer Dashboard
+![Organizer Dashboard](frontend/public/Screenshot%202026-08-09%20123901.png)
+
+### Event Management & Photo Upload
+![Event Management](frontend/public/Screenshot%202026-08-09%20123949.png)
+
+### Attendee Selfie Search
+![Selfie Search](frontend/public/Screenshot%202026-08-09%20124028.png)
+
+### Face Recognition Results
+![Match Results](frontend/public/Screenshot%202026-08-09%20140248.png)
+
+---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React** 19.0.0
-- **Tailwind CSS** - Utility-first CSS framework
-- **Radix UI** - Unstyled, accessible component library
-- **React Router** 7.5.1 - Client-side routing
-- **Axios** - HTTP client
-- **Framer Motion** - Animation library
-- **React Hook Form** - Form state management
+- **React 19** + React Router v7
+- **Tailwind CSS v3.4** — custom design tokens (`#08090d` ink bg, `#6d5ef5` iris accent, `#34d399` match green)
+- **Framer Motion** + **GSAP** — animations and micro-interactions
+- **Radix UI** — accessible component primitives
+- **qrcode.react** — QR code generation for table cards
+- **Sonner** — toast notifications
+- **Axios** — API client
 
 ### Backend
-- **FastAPI** - Modern, fast web framework
-- **Python 3.x**
-- **MongoDB** - Document database
-- **Motor** - Async MongoDB driver
-- **DeepFace** - Face recognition and detection
-- **FAISS** - Facebook AI Similarity Search
-- **JWT** - Secure authentication
-- **CORS** - Cross-origin resource sharing
+- **FastAPI** (Python 3.11) — async REST API
+- **Motor** — async MongoDB driver
+- **MongoDB Atlas** — cloud database + GridFS for file storage
+- **DeepFace** (Facenet512) — face embedding extraction
+- **FAISS** — sub-second similarity vector search
+- **bcrypt + PyJWT** — password hashing and authentication
+- **certifi** — SSL/TLS for MongoDB Atlas connections
 
-### AI & ML
-- **Google Generative AI** - LLM integration
-- **DeepFace** - Deep learning face recognition
-- **FAISS** - Efficient similarity search
-- **OpenCV** - Computer vision processing
-- **PIL** - Image processing
+---
 
 ## 📋 Prerequisites
 
-- Node.js (v16+)
-- Python 3.8+
-- MongoDB instance
+- Node.js v18+
+- Python 3.11+
+- MongoDB (local or Atlas cloud)
 - Git
+
+---
 
 ## 🚀 Getting Started
 
-### Environment Setup
+### 1. Clone the Repository
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/abhishek1165/Event_Snap.git
 cd Event_Snap
 ```
 
-2. Create a `.env` file in the backend directory:
-```env
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=event_snap
-JWT_SECRET=Enter your -secret -key
-```
+### 2. Backend Setup
 
-### Backend Setup
-
-1. Navigate to the backend directory:
 ```bash
 cd backend
-```
-
-2. Create a Python virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
 pip install -r requirements.txt
 ```
 
-4. Run the server:
+Create `backend/.env`:
+```env
+MONGO_URL=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/event_snap?retryWrites=true&w=majority&appName=Cluster0
+DB_NAME=event_snap
+JWT_SECRET=your-secret-key-here
+CORS_ORIGINS=http://localhost:3000
+```
+
+> **Using local MongoDB instead?** Set `MONGO_URL=mongodb://localhost:27017`
+
+Start the backend:
 ```bash
+# Windows (recommended)
+.\run_server.bat
+
+# Or directly with uvicorn
+uvicorn server:app --host 127.0.0.1 --port 8081
+
+# Or with Python
 python server.py
 ```
 
-The API will be available at `http://localhost:8000`
+Backend runs at: `http://localhost:8081`
+Swagger docs at: `http://localhost:8081/docs`
 
-### Frontend Setup
+### 3. Frontend Setup
 
-1. Navigate to the frontend directory:
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Start the development server:
+Create `frontend/.env`:
+```env
+REACT_APP_BACKEND_URL=http://localhost:8081
+```
+
+Start the dev server:
 ```bash
 npm start
 ```
 
-The frontend will be available at `http://localhost:3000`
+Frontend runs at: `http://localhost:3000`
+
+---
 
 ## 📁 Project Structure
 
 ```
 Event_Snap/
 ├── backend/
-│   ├── server.py           # FastAPI application
-│   ├── requirements.txt    # Python dependencies
-│   └── .env               # Environment variables
-├── frontend/
-│   ├── src/               # React components and pages
-│   ├── public/            # Static assets
-│   ├── package.json       # Node dependencies
-│   └── tailwind.config.js # Tailwind configuration
-├── storage/               # File storage for photos
-├── tests/                 # Test files
-└── README.md             # This file
+│   ├── server.py              # FastAPI app — all API routes
+│   ├── run_server.bat         # Windows startup script (port 8081)
+│   ├── requirements.txt       # Python dependencies
+│   └── .env                   # Environment variables (not committed)
+└── frontend/
+    ├── src/
+    │   ├── components/
+    │   │   ├── brand/atoms.jsx                     # Core UI primitives
+    │   │   └── organizer/QrCardGeneratorModal.jsx  # QR Table Card Generator
+    │   ├── design/tokens.js                         # Color & motion tokens
+    │   ├── pages/
+    │   │   ├── Landing.js           # Public landing page
+    │   │   ├── Auth.js              # Login / Register
+    │   │   ├── OrganizerDashboard.js # Event management dashboard
+    │   │   ├── EventDetails.js      # Event detail & photo upload
+    │   │   ├── AttendeeEntry.js     # Attendee access code entry
+    │   │   ├── SelfieCapture.js     # Selfie capture & face search
+    │   │   ├── PhotoGallery.js      # Matched photo results
+    │   │   └── LiveSlideshow.js     # Venue TV slideshow mode
+    │   └── utils/api.js             # Axios instance & backend URL config
+    ├── .env                         # Frontend env vars (not committed)
+    ├── craco.config.js              # Webpack / devServer config
+    ├── tailwind.config.js           # Tailwind v3 theme
+    └── package.json
 ```
-
-## 🔐 Authentication
-
-The application uses JWT-based authentication. Users need to:
-
-1. Register with email and password
-2. Login to receive a JWT token
-3. Include the token in the `Authorization: Bearer <token>` header for API requests
-
-## 🖼️ Image Processing
-
-- Photos are stored in the `storage/photos` directory
-- Thumbnails are automatically generated and stored in `storage/thumbnails`
-- FAISS indices are stored in `storage/faiss_indices` for fast similarity search
-
-## 🧪 Testing
-
-Run the test suite:
-```bash
-python backend_test.py
-```
-
-Test results will be saved to `test_result.md`
-
-## 📝 API Endpoints
-
-### Authentication
-- `POST /auth/register` - Register a new user
-- `POST /auth/login` - Login user
-- `POST /auth/refresh` - Refresh JWT token
-
-### Photos
-- `GET /photos` - Get all photos
-- `POST /photos/upload` - Upload a new photo
-- `GET /photos/{photo_id}` - Get photo details
-- `DELETE /photos/{photo_id}` - Delete a photo
-
-### Face Recognition
-- `POST /recognize/faces` - Detect and recognize faces in an image
-- `GET /recognize/similar/{face_id}` - Find similar faces
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👨‍💻 Authors
-
-- **Abhishek** - Initial work - [GitHub](https://github.com/abhishek1165)
-
-## 📞 Support
-
-For support, email abhishekkachhap9471@gmail.com or open an issue on the GitHub repository.
-
-## 🚀 Future Enhancements
-
-- [ ] Real-time face detection using WebRTC
-- [ ] Advanced search filters
-- [ ] Social sharing features
-- [ ] Mobile app
-- [ ] Event-based organization
-- [ ] Automated photo suggestions
-- [ ] Integration with cloud storage services
 
 ---
 
-**Happy snapping!** 📸
+## 🔐 Authentication
+
+JWT-based authentication with two roles:
+
+| Role | Access |
+|------|--------|
+| **Organizer** | Create events, upload photos, view dashboard, generate QR cards |
+| **Attendee** | Enter event code, submit selfie, view matched photos |
+
+---
+
+## 📡 Key API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/register` | Register new user |
+| `POST` | `/api/auth/login` | Login, receive JWT |
+| `GET` | `/api/events` | List organizer's events |
+| `POST` | `/api/events` | Create new event |
+| `POST` | `/api/events/{id}/photos` | Upload photos to event |
+| `GET` | `/api/events/code/{code}` | Attendee lookup by 8-char code |
+| `POST` | `/api/search/selfie` | Submit selfie for face-match search |
+| `GET` | `/api/events/{id}/photos` | List event photos |
+| `DELETE` | `/api/events/{id}/photos/{photo_id}` | Delete photo + rebuild FAISS index |
+
+---
+
+## ⚠️ Windows Port Note
+
+Windows Hyper-V reserves port range `7910–8009`. The backend runs on **port 8081** to bypass this restriction. If you need a different port:
+
+```bash
+uvicorn server:app --host 127.0.0.1 --port <YOUR_PORT>
+```
+
+And update `frontend/.env`:
+```env
+REACT_APP_BACKEND_URL=http://localhost:<YOUR_PORT>
+```
+
+---
+
+## 👨‍💻 Author
+
+**Abhishek** — [GitHub](https://github.com/abhishek1165) — abhishekkachha12345@gmail.com
+
+---
+
+**Happy Snapping!** 📸
