@@ -1,4 +1,5 @@
 @echo off
+echo Starting Event Snap Backend...
 cd /d "%~dp0"
-uvicorn server:app --reload --host 0.0.0.0 --port 8000
+python server.py
 pause

@@ -63,7 +63,7 @@ const webpackConfig = {
 webpackConfig.devServer = (devServerConfig) => {
   devServerConfig.proxy = {
     '/api': {
-      target: 'http://localhost:8000',
+      target: 'http://localhost:8081',
       changeOrigin: true,
     },
   };

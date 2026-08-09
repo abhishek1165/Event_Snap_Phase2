@@ -16,7 +16,7 @@ export default function LiveSlideshow() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8081';
 
   const loadData = useCallback(async () => {
     try {

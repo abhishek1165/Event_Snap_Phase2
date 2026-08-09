@@ -19,7 +19,7 @@ export default function PhotoGallery() {
 
   const [selectedPhotos, setSelectedPhotos] = useState(new Set());
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8081';
   const HIGH_CONFIDENCE_THRESHOLD = 0.7;
 
   const resultsById = useMemo(

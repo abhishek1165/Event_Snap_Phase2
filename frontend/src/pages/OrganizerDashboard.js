@@ -86,10 +86,20 @@ const OrganizerDashboard = () => {
     e.preventDefault();
     try {
       const response = await api.post("/events", newEvent);
+      const createdEvent = response.data;
       toast.success("Event created successfully!");
-      setEvents([response.data, ...events]);
+      
+      // Update local state with new event
+      setEvents([createdEvent, ...events]);
+      
+      // Close dialog
       setCreateDialogOpen(false);
+      
+      // Reset form
       setNewEvent({ title: "", description: "", date: "" });
+      
+      // Navigate to the new event details page
+      navigate(`/events/${createdEvent.id}`);
     } catch (error) {
       toast.error("Failed to create event.");
     }

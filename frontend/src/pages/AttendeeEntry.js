@@ -18,7 +18,7 @@ function useW() {
 }
 
 /* ── Stepper ── */
-const STEP_LABELS = ["Code", "Verify", "Results"];
+const STEP_LABELS = ["Code"];
 function Stepper({ step }) {
   const w = useW();
   const small = w < 480;
@@ -99,9 +99,11 @@ function StepCode({ onNext }) {
       if (event.status === "active" && event.total_photos === 0) { toast.error("This event has no photos yet."); setLoading(false); return; }
       if (event.faces_detected === 0) toast.warning("No faces detected yet. You can still try searching.");
       toast.success(`Found event: ${event.title}`);
+      // Navigate directly to selfie search page
       onNext(event);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Event not found");
+      const errorMsg = err.response?.data?.detail || "Event not found";
+      toast.error(errorMsg);
       setLoading(false);
     }
   };
@@ -153,222 +155,18 @@ function StepCode({ onNext }) {
 }
 
 /* ════════════════════════════════════════════════════
-   STEP 2 — Selfie / Upload
-════════════════════════════════════════════════════ */
-function StepVerify({ event, onNext }) {
-  const w = useW();
-  const [tab, setTab]       = useState("selfie");
-  const [faceDetected, setFace] = useState(false);
-  const [fileReady, setFile]    = useState(false);
-  const [fileName, setFileName] = useState(null);
-  const [uploadFile, setUploadFile] = useState(null);
-  const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (tab !== "selfie") return;
-    setFace(false);
-    const t = setTimeout(() => setFace(true), 1200);
-    return () => clearTimeout(t);
-  }, [tab]);
-
-  const handleShutter = () => {
-    if (!faceDetected) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = 4; canvas.height = 4;
-    canvas.toBlob(blob => { if (blob) onNext(event, blob); });
-  };
-
-  const handleFileChange = (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    setUploadFile(f); setFileName(f.name); setFile(true);
-  };
-
-  const handleUploadContinue = () => {
-    if (!fileReady || !uploadFile) return;
-    onNext(event, uploadFile);
-  };
-
-  /* viewfinder aspect ratio: taller on small screens */
-  const vfAspect = w < 480 ? "3/4" : "4/3";
-
-  return (
-    <div style={{ width:"100%", maxWidth: w < 600 ? "100%" : 460, textAlign:"center", padding: w < 480 ? "0 4px" : 0 }}>
-      <Eyebrow style={{ marginBottom: 10 }}>{event?.title || "Event"} · verify it's you</Eyebrow>
-      <h1 style={{ ...R, fontSize:"clamp(1.7rem,5vw,2.4rem)", marginBottom:10 }}>Show us your face.</h1>
-      <p style={{ color:T.dim, fontSize: w < 480 ? ".9rem" : ".98rem", marginBottom:24, lineHeight:1.6 }}>
-        One photo, nothing else. We turn it into a match key, never a photo we keep.
-      </p>
-
-      {/* Tabs — ARIA tablist pattern */}
-      <div role="tablist" aria-label="Verification method" style={{ display:"flex", background:T.paper, border:`1px solid ${T.frameSoft}`, borderRadius:12, padding:4, marginBottom:22 }}>
-        {[["selfie","Take Selfie"],["upload","Upload Photo"]].map(([key,label]) => (
-          <button key={key}
-            role="tab"
-            aria-selected={tab === key}
-            aria-controls={`tab-panel-${key}`}
-            id={`tab-${key}`}
-            onClick={() => { setTab(key); setFile(false); setFileName(null); }}
-            style={{
-              flex:1, padding: w < 480 ? "9px 0" : "11px 0", textAlign:"center",
-              fontSize: w < 480 ? ".85rem" : ".9rem", fontWeight:500, borderRadius:9,
-              background: tab===key ? T.paper2 : "transparent",
-              color: tab===key ? T.text : T.dim,
-              border:"none", cursor:"pointer",
-              boxShadow: tab===key ? "0 4px 12px -4px rgba(0,0,0,.4)" : "none",
-              transition:"all .25s ease", fontFamily:"inherit",
-            }}>{label}</button>
-        ))}
-      </div>
-
-      {/* ── SELFIE TAB ── */}
-      {tab === "selfie" && (
-        <div id="tab-panel-selfie" role="tabpanel" aria-labelledby="tab-selfie">
-          <div style={{ position:"relative", width:"100%", aspectRatio:vfAspect, background:"radial-gradient(circle at 50% 40%,#1b1f2c,#0b0d13 75%)", border:`1px solid ${T.frameSoft}`, borderRadius:18, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            {/* Bracket corners */}
-            <div style={{ position:"relative", width: faceDetected ? "36%" : "42%", paddingBottom: faceDetected ? "45%" : "52%", transition:"all .6s cubic-bezier(.2,.8,.2,1)" }}>
-              {[
-                { top:0,    left:0,  borderRight:"none", borderBottom:"none" },
-                { top:0,    right:0, borderLeft:"none",  borderBottom:"none" },
-                { bottom:0, left:0,  borderRight:"none", borderTop:"none"    },
-                { bottom:0, right:0, borderLeft:"none",  borderTop:"none"    },
-              ].map((s,i) => (
-                <span key={i} style={{ position:"absolute", width:20, height:20, border:`2.5px solid ${faceDetected ? T.conf : T.faint}`, transition:"border-color .4s ease", ...s }} />
-              ))}
-            </div>
-            {/* Face silhouette */}
-            {faceDetected && (
-              <div style={{ position:"absolute", width:"22%", aspectRatio:1, borderRadius:"50%", background:"radial-gradient(circle at 38% 32%,rgba(255,255,255,.14),rgba(255,255,255,.02) 60%),#2a2f3d", top:"32%", left:"50%", transform:"translateX(-50%)" }} />
-            )}
-            {/* Scan line */}
-            {faceDetected && (
-              <div style={{ position:"absolute", left:0, right:0, height:2, top:"50%", background:`linear-gradient(90deg,transparent,${T.signal2},${T.conf},${T.signal2},transparent)`, boxShadow:"0 0 12px 2px rgba(139,123,255,.5)", animation:"lscanline 2s ease-in-out infinite" }} />
-            )}
-            <span aria-live="polite" aria-atomic="true" style={{ position:"absolute", bottom:14, left:"50%", transform:"translateX(-50%)", fontFamily:MONO, fontSize: w < 480 ? ".65rem" : ".74rem", color: faceDetected ? T.conf : T.faint, background:"rgba(0,0,0,.45)", padding:"5px 12px", borderRadius:20, letterSpacing:".03em", whiteSpace:"nowrap", transition:"color .4s" }}>
-              {faceDetected ? "Face detected ✓" : "Looking for a face…"}
-            </span>
-          </div>
-
-          {/* Shutter button */}
-          <div style={{ display:"flex", justifyContent:"center", marginTop:22 }}>
-            <button onClick={handleShutter} disabled={!faceDetected} aria-label="Capture" style={{
-              width: w < 480 ? 54 : 62, height: w < 480 ? 54 : 62, borderRadius:"50%",
-              background:T.paper, border:`3px solid ${faceDetected ? T.signal2 : T.frame}`,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              cursor: faceDetected ? "pointer" : "default",
-              opacity: faceDetected ? 1 : 0.45,
-              transition:"all .3s ease",
-            }}>
-              <span style={{ width: w < 480 ? 38 : 46, height: w < 480 ? 38 : 46, borderRadius:"50%", background: faceDetected ? T.signal2 : T.faint, display:"block", transition:"background .3s" }} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── UPLOAD TAB ── */}
-      {tab === "upload" && (
-        <div id="tab-panel-upload" role="tabpanel" aria-labelledby="tab-upload">
-          <div onClick={() => fileInputRef.current?.click()} style={{
-            width:"100%", aspectRatio: w < 480 ? "3/2" : "4/3",
-            border:`2px ${fileReady ? "solid" : "dashed"} ${fileReady ? T.conf : T.frame}`,
-            borderRadius:18, display:"flex", flexDirection:"column",
-            alignItems:"center", justifyContent:"center", gap:10,
-            color: fileReady ? T.conf : T.faint,
-            cursor:"pointer", transition:"border-color .3s,background .3s",
-            background: fileReady ? "rgba(52,211,153,.04)" : "transparent",
-            padding:"24px 16px",
-          }}
-            onMouseEnter={e => { if (!fileReady) e.currentTarget.style.borderColor = T.signal2; }}
-            onMouseLeave={e => { if (!fileReady) e.currentTarget.style.borderColor = T.frame; }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 16V4M12 4l-5 5M12 4l5 5M4 20h16"/></svg>
-            <b style={{ ...R, fontSize: w < 480 ? ".9rem" : "1rem", color: fileReady ? T.conf : T.text }}>
-              {fileReady ? fileName : "Tap to upload a photo"}
-            </b>
-            <span style={{ fontSize:".8rem", textAlign:"center" }}>{fileReady ? "Tap to choose a different photo" : "Supports JPG, PNG, WEBP"}</span>
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFileChange} />
-          <div style={{ marginTop:18 }}>
-            <Btn solid onClick={handleUploadContinue} disabled={!fileReady} aria-label={fileReady ? `Continue with ${fileName}` : "Continue. Upload a photo first"} style={{ width:"100%" }}>Continue →</Btn>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════
-   STEP 3 — Processing radar → navigate to selfie page
-════════════════════════════════════════════════════ */
-function StepProcessing({ event, selfieBlob }) {
-  const w = useW();
-  const [count, setCount] = useState(0);
-  const navigate = useNavigate();
-  const total = event?.total_photos || 4;
-  const radarSize = w < 480 ? 150 : 190;
-
-  useEffect(() => {
-    let frame, val = 0;
-    const step = () => {
-      val += 0.08;
-      setCount(Math.min(Math.round(val), total));
-      if (val < total) { frame = requestAnimationFrame(step); }
-      else {
-        setTimeout(() => {
-          navigate(`/attend/${event.id}/selfie`, { state: { event, selfieBlob } });
-        }, 600);
-      }
-    };
-    const t = setTimeout(() => { frame = requestAnimationFrame(step); }, 300);
-    return () => { clearTimeout(t); cancelAnimationFrame(frame); };
-  }, [event, selfieBlob, navigate, total]);
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, padding:`${w < 480 ? 40 : 60}px 24px` }}>
-      {/* Radar */}
-      <div style={{ position:"relative", width:radarSize, height:radarSize, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:24 }}>
-        {[0, Math.round(radarSize*0.136), Math.round(radarSize*0.273)].map(inset => (
-          <div key={inset} style={{ position:"absolute", inset, borderRadius:"50%", border:`1px solid ${T.frameSoft}` }} />
-        ))}
-        <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:"conic-gradient(from 0deg, rgba(109,94,245,0) 0deg, rgba(109,94,245,.55) 58deg, transparent 62deg)", animation:"lradar 1.4s linear infinite" }} />
-        <div style={{ position:"relative", width: w < 480 ? 46 : 60, height: w < 480 ? 46 : 60, borderRadius:"50%", background:"linear-gradient(135deg,#6d5ef5,#8b7bff)", zIndex:2, boxShadow:"0 0 30px -4px rgba(109,94,245,.65)" }} />
-      </div>
-      <p style={{ color:T.dim, fontSize: w < 480 ? ".88rem" : ".95rem", marginBottom:12, textAlign:"center", maxWidth:320 }}>
-        Comparing your face against {event?.title || "event photos"}…
-      </p>
-      <div aria-live="polite" aria-atomic="true" style={{ display:"flex", alignItems:"baseline", gap:8, fontFamily:MONO, fontSize:".9rem", color:T.dim }}>
-        <span>Checked</span>
-        <b style={{ fontSize: w < 480 ? "1.1rem" : "1.3rem", color:T.text, ...R }}>{count}</b>
-        <span>/ {total} photos</span>
-      </div>
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════
-   ROOT PAGE
+   ROOT PAGE - Simplified (removed unnecessary steps)
 ════════════════════════════════════════════════════ */
 export default function AttendeeEntry() {
   const w = useW();
-  const [step, setStep]   = useState(1);
-  const [event, setEvent] = useState(null);
-  const [selfie, setSelfie] = useState(null);
   const navigate = useNavigate();
 
-  const animateTo = async (n) => {
-    const { gsap } = await import("gsap");
-    const el = document.getElementById("ls-flow-step");
-    if (!el) { setStep(n); return; }
-    gsap.to(el, { opacity:0, y:-14, duration:.3, ease:"power2.in", onComplete: () => {
-      setStep(n);
-      gsap.fromTo(el, { opacity:0, y:14 }, { opacity:1, y:0, duration:.45, ease:"power3.out" });
-    }});
+  const handleEventFound = (event) => {
+    // Navigate directly to selfie search page
+    navigate(`/attend/${event.id}/selfie`, { state: { event } });
   };
 
-  const goStep1ToStep2 = (ev) => { setEvent(ev); animateTo(2); };
-  const goStep2ToStep3 = (ev, blob) => { setEvent(ev); setSelfie(blob); animateTo(3); };
-
-  const handleBack = () => { if (step > 1) animateTo(step - 1); else navigate("/"); };
+  const handleBack = () => navigate("/");
 
   /* Header padding responsive */
   const hPad = w < 480 ? "18px 16px" : w < 720 ? "22px 24px" : "26px 40px";
@@ -378,9 +176,7 @@ export default function AttendeeEntry() {
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", position:"relative", background:T.ink, color:T.text, fontFamily:"'Inter',system-ui,sans-serif", lineHeight:1.6, WebkitFontSmoothing:"antialiased", overflowX:"hidden" }}>
       <style>{`
-        @keyframes lspin     { to { transform:rotate(360deg); } }
-        @keyframes lradar    { to { transform:rotate(360deg); } }
-        @keyframes lscanline { 0%,100%{ top:35% } 50%{ top:65% } }
+        @keyframes lspin { to { transform:rotate(360deg); } }
         * { box-sizing: border-box; }
         input { -webkit-appearance: none; }
         /* ── Visually hidden (screen-reader only) ── */
@@ -414,11 +210,11 @@ export default function AttendeeEntry() {
       {/* ── Header ── */}
       <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:hPad, position:"relative", zIndex:5, gap:8 }}>
         {/* Back button */}
-        <button onClick={handleBack} aria-label={step === 1 ? "Back to home" : `Back to step ${step - 1}`}
+        <button onClick={handleBack} aria-label="Back to home"
           style={{ fontSize: w < 480 ? ".82rem" : ".9rem", color:T.dim, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit", transition:"color .2s", flexShrink:0, whiteSpace:"nowrap" }}
           onMouseEnter={e => e.currentTarget.style.color = T.text}
           onMouseLeave={e => e.currentTarget.style.color = T.dim}>
-          ← {w < 400 ? "" : step === 1 ? "Home" : "Back"}
+          ← {w < 400 ? "" : "Home"}
         </button>
 
         {/* Center logo — hidden on very small if stepper overflows */}
@@ -431,16 +227,14 @@ export default function AttendeeEntry() {
 
         {/* Stepper */}
         <div style={{ flexShrink:0, marginLeft:"auto" }}>
-          <Stepper step={step} />
+          <Stepper step={1} />
         </div>
       </header>
 
       {/* ── Main ── */}
-      <main id="ls-flow-main" style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent: step === 3 ? "flex-start" : "center", padding:mPad, position:"relative", zIndex:2 }}>
+      <main id="ls-flow-main" style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:mPad, position:"relative", zIndex:2 }}>
         <div id="ls-flow-step" style={{ width:"100%", maxWidth: w < 600 ? "100%" : 540, display:"flex", flexDirection:"column", alignItems:"center" }}>
-          {step === 1 && <StepCode onNext={goStep1ToStep2} />}
-          {step === 2 && <StepVerify event={event} onNext={goStep2ToStep3} />}
-          {step === 3 && <StepProcessing event={event} selfieBlob={selfie} />}
+          <StepCode onNext={handleEventFound} />
         </div>
       </main>
     </div>

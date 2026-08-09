@@ -26,8 +26,10 @@ const EventDetails = () => {
   const [deleting, setDeleting] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [deleteEventDialogOpen, setDeleteEventDialogOpen] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(false);
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8081';
 
   const handleCopyLink = () => {
     if (!event) return;
@@ -134,6 +136,19 @@ const EventDetails = () => {
     }
   };
 
+  const handleDeleteEvent = async () => {
+    setDeletingEvent(true);
+    try {
+      await api.delete(`/events/${eventId}`);
+      toast.success("Event deleted successfully");
+      setDeleteEventDialogOpen(false);
+      navigate("/dashboard");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete event");
+      setDeletingEvent(false);
+    }
+  };
+
   if (loading) {
     return (
       <AppShell>
@@ -204,11 +219,38 @@ const EventDetails = () => {
                   >
                     <Tv className="h-4 w-4 text-match" /> Launch Live Slideshow
                   </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteEventDialogOpen(true)}
+                    className="gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete Event
+                  </Button>
                 </div>
               </div>
               <div className="text-right">
                 <div className="mb-1 text-sm text-text-faint">Access code</div>
-                <div className="font-mono text-2xl font-bold tracking-wider text-match">{event?.event_code}</div>
+                <div className="flex items-center justify-end gap-2">
+                  <div 
+                    className="text-2xl font-bold tracking-normal select-all" 
+                    style={{fontFamily: 'monospace'}}
+                  >
+                    {event?.event_code}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(event?.event_code);
+                      toast.success("Access code copied!");
+                    }}
+                    className="p-2 rounded-lg hover:bg-surface-2 transition-colors group"
+                    aria-label="Copy access code"
+                    title="Copy code"
+                  >
+                    <Copy className="h-4 w-4 text-text-dim group-hover:text-text" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -395,6 +437,54 @@ const EventDetails = () => {
                 )}
               >
                 {deleting ? (<><Loader2 className="h-4 w-4 animate-spin" /> Deleting…</>) : (<><Trash2 className="h-4 w-4" /> Delete photo</>)}
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Event Dialog */}
+        <Dialog open={deleteEventDialogOpen} onOpenChange={setDeleteEventDialogOpen}>
+          <DialogContent className="border-frame bg-surface text-text">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-400">
+                <AlertTriangle className="h-5 w-5" /> Delete Event
+              </DialogTitle>
+              <DialogDescription className="text-text-dim">
+                <strong className="text-red-400">Warning:</strong> This will permanently delete the entire event, including:
+                <ul className="mt-2 list-disc pl-5 space-y-1">
+                  <li>All {photos.length} uploaded photos</li>
+                  <li>All thumbnails and processed images</li>
+                  <li>All face embeddings and search index</li>
+                  <li>Event details and access code</li>
+                </ul>
+                <p className="mt-3 font-semibold">This action cannot be undone.</p>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 flex gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => setDeleteEventDialogOpen(false)}
+                className="flex-1"
+                disabled={deletingEvent}
+              >
+                Cancel
+              </Button>
+              <button
+                onClick={handleDeleteEvent}
+                disabled={deletingEvent}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition-transform hover:bg-red-400 active:scale-[.98] disabled:opacity-50"
+                )}
+              >
+                {deletingEvent ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Deleting Event…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" /> Delete Event Permanently
+                  </>
+                )}
               </button>
             </div>
           </DialogContent>
