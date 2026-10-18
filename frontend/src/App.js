@@ -1,8 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
-import Landing from './pages/Landing';
-import Auth from './pages/Auth';
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import EventDetails from './pages/EventDetails';
 import AttendeeEntry from './pages/AttendeeEntry';
@@ -13,7 +14,7 @@ import './App.css';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/auth" />;
+  return token ? children : <Navigate to="/login" />;
 };
 
 function App() {
@@ -21,8 +22,10 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/auth" element={<Navigate to="/login" replace />} />
           <Route
             path="/dashboard"
             element={

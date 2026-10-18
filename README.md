@@ -126,6 +126,22 @@ npm start
 
 Frontend runs at: `http://localhost:3000`
 
+### 🐳 Docker & Docker Compose Setup (One-Click Launch)
+
+Run both backend and frontend using Docker Compose:
+
+```bash
+# Build & start all containers (backend, frontend, local mongo)
+docker-compose up --build -d
+
+# Stop containers
+docker-compose down
+```
+
+- **Frontend**: `http://localhost:3000`
+- **Backend API**: `http://localhost:8081`
+- **Swagger Docs**: `http://localhost:8081/docs`
+
 ---
 
 ## 📁 Project Structure

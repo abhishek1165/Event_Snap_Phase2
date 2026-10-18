@@ -457,7 +457,7 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = None
     OPTIMIZATION 3: Uses batch MongoDB $in lookup to eliminate N+1 query problem."""
     try:
         # Load index if not in memory
-        if event_id not in faiss_indices:
+        if event_id not in faiss_indices or event_id not in face_mappings:
             index_filename = f"{event_id}.index"
             mapping_filename = f"{event_id}.pkl"
             
@@ -465,21 +465,24 @@ async def search_faces(event_id: str, query_embedding: np.ndarray, k: int = None
             try:
                 async for grid_file in faiss_fs.find({"filename": index_filename}).limit(1):
                     index_data = await download_from_gridfs(faiss_fs, str(grid_file._id))
-                    index = faiss.deserialize_index(index_data)
-                    faiss_indices[event_id] = index
+                    faiss_indices[event_id] = faiss.deserialize_index(index_data)
                     break
-                else:
-                    logging.warning(f"FAISS index not found for event {event_id}")
-                    return []
                 
                 async for grid_file in faiss_fs.find({"filename": mapping_filename}).limit(1):
                     mapping_data = await download_from_gridfs(faiss_fs, str(grid_file._id))
                     face_mappings[event_id] = pickle.loads(mapping_data)
                     break
-                    
             except Exception as e:
                 logging.warning(f"Error loading FAISS index from GridFS: {e}")
-                return []
+            
+            # Auto-rebuild from MongoDB embeddings if index/mapping was missing from GridFS
+            if event_id not in faiss_indices or event_id not in face_mappings:
+                logging.info(f"FAISS index missing for event {event_id}. Auto-rebuilding from MongoDB face_embeddings...")
+                await build_faiss_index(event_id)
+        
+        if event_id not in faiss_indices or event_id not in face_mappings:
+            logging.warning(f"No face embeddings found to build index for event {event_id}.")
+            return []
         
         index = faiss_indices[event_id]
         mapping = face_mappings[event_id]

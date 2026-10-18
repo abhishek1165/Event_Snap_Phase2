@@ -83,9 +83,13 @@ module.exports = {
         }
       },
       fontFamily: {
-        display: ['Instrument Sans', 'system-ui', 'sans-serif'],
-        body:    ['Inter', 'system-ui', 'sans-serif'],
-        mono:    ['IBM Plex Mono', 'monospace'],
+        display:   ['Instrument Sans', 'system-ui', 'sans-serif'],
+        body:      ['Inter', 'system-ui', 'sans-serif'],
+        mono:      ['IBM Plex Mono', 'monospace'],
+        // Portfolio landing-page extras (light-theme design system)
+        'display-serif': ['"Playfair Display"', 'Georgia', 'serif'],
+        'sans-dm':       ['"DM Sans"', 'Arial', 'sans-serif'],
+        'mono-dm':       ['"DM Mono"', 'monospace'],
       },
       keyframes: {
         'accordion-down': {
@@ -108,6 +112,17 @@ module.exports = {
           '0%,100%': { transform: 'translate3d(0,0,0) scale(1)' },
           '50%':     { transform: 'translate3d(2%, -3%, 0) scale(1.05)' }
         },
+        // Landing page animations
+        'marquee': { to: { transform: 'translateX(-50%)' } },
+        'float': {
+          '0%,100%': { transform: 'rotate(var(--float-rotate,-12deg)) translateY(0)' },
+          '50%':     { transform: 'rotate(calc(var(--float-rotate,-12deg) / 3)) translateY(-13px)' },
+        },
+        'scanner-beam': {
+          '0%':   { top: '0%' },
+          '50%':  { top: '92%' },
+          '100%': { top: '0%' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -115,6 +130,9 @@ module.exports = {
         'fade-in': 'fade-in 0.4s ease-out',
         'shimmer': 'shimmer 2.2s linear infinite',
         'aurora': 'aurora 16s ease-in-out infinite',
+        'marquee': 'marquee 38s linear infinite',
+        'float':   'float 5s ease-in-out infinite',
+        'pulse-dot': 'live-pulse 1.45s ease-in-out infinite',
       },
       backgroundImage: {
         'brand-gradient': 'linear-gradient(135deg,#6d5ef5 0%,#8b7bff 100%)',

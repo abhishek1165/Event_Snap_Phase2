@@ -1,0 +1,26 @@
+.git
+.gitignore
+.agents/
+.emergent/
+.vscode/
+.idea/
+
+# Node
+node_modules/
+npm-debug.log
+frontend/node_modules/
+frontend/build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+backend/temp/
+backend/event_snap.log
+
+# Local files
+storage/
+*.md

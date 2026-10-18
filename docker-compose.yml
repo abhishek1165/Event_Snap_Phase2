@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: event_snap_backend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - MONGO_URL=${MONGO_URL:-mongodb://mongo:27017}
+      - DB_NAME=${DB_NAME:-event_snap}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:80}
+      - PORT=8081
+    env_file:
+      - ./backend/.env
+    depends_on:
+      mongo:
+        condition: service_started
+        required: false
+
+  # React Frontend Service (Served via Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: event_snap_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  # Local MongoDB Service (Optional - used if MONGO_URL=mongodb://mongo:27017)
+  mongo:
+    image: mongo:latest
+    container_name: event_snap_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
